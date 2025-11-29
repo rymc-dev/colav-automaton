@@ -1,19 +1,17 @@
+# !/usr/bin/python3 
+# <---utf-8--->
 
-from geometry_msgs.msg import TwistStamped, PoseStamped
-from typing import Dict
-from typing import Optional
-from hybrid_automaton import Automaton, State, Transition
-from types import SimpleNamespace as SN
-import math
-import numpy as np
-from scipy.spatial.transform import Rotation as R
+""" 
+guards for colav_automaton hybrid automaton which is built on the hybrid_automaton framework 
+packages. 
+"""
 
 import math
-import numpy as np
-from typing import List
+from typing import Dict, List
 from shapely.geometry import Polygon, LineString, Point
 
-def heading_not_within_tolerance_guard(x: list, aux_x: Dict = None, ctx: Dict= None,  u: Dict=None, dt: float=0.1) -> bool:
+
+def heading_not_within_tolerance_guard(x: list, aux_x: Dict, ctx: Dict= None,  u: Dict=None, dt: float=0.1) -> bool:
     """ 
     guard function for hybrid automaton which checks if a heading provided is 
     not within a heading tolerance
@@ -37,17 +35,30 @@ def heading_not_within_tolerance_guard(x: list, aux_x: Dict = None, ctx: Dict= N
             value representing heading_tolerance in radians. 
         u: Dict
             this are control inputs we expected, this this case is is None by default and not used
-        dt: float
-            delta time between guard checks, this is not used within this guard however, just 
-            a required arg for integration with automaton guards
+        # dt: float
+        #     delta time between guard checks, this is not used within this guard however, just 
+        #     a required arg for integration with automaton guards # TODO: remove this, it's not needed anymore!
 
     Raises: 
         ...
     """
+    if x is None or x is not type(List) or len(x) != 5 or [float == type(x_val) for x_val in x]:
+        raise ValueError('invalid x value for this guard, expected x to be a list of scalar 5 scalar values of float types')
 
     if aux_x is None or "waypoints" not in aux_x:
-        return False
-
+        raise ValueError('invalid aux_x for this guard')
+    
+    if len(aux_x.get('waypoints')) <= 0:
+        raise ValueError('invalid waypoints')
+    
+    if not isinstance(ctx, Dict):
+        raise ValueError('invalid ctx')
+    
+    try: 
+        ctx['heading_tolerance']
+    except Exception as e:
+        raise Exception('ctx heading tolerance is not in context, but required for this guard')
+    
     xx, xy, yaw = x            # current position + heading
     wx, wy = aux_x["waypoints"][-1] # waypoint position
 
@@ -112,7 +123,23 @@ def heading_within_tolerance_guard(x: List, aux_x: Dict, ctx: Dict = None,  u: D
     return abs(error) <= ctx["cfg"]["heading_tolerance"]
 
 def los_clear_to_waypoint_guard(x: List, aux_x: Dict, ctx: Dict, u: Dict = None, dt: float = 0.1) -> bool: 
+    """  
     
+    Docs: 
+        Flowchart: 
+            
+
+    Args: 
+        ... 
+
+    Raises: 
+        ValueError
+        if any of the inputs are invalid
+
+    Returns: 
+        bool
+            True if line of sight to waypoint is NOT clear representing guard trigger
+    """
     current_waypoint: List[float, float] = aux_x["waypoints"][-1]
 
     los: LineString = LineString([x[0:1], current_waypoint])
@@ -136,6 +163,31 @@ def los_clear_to_waypoint_guard(x: List, aux_x: Dict, ctx: Dict, u: Dict = None,
     return False
 
 def unsafe_conditions_guard(x: List, aux_x: Dict, ctx: Dict, u: Dict = None, dt: float = 0.1) -> bool: 
+    """  
+    
+
+    Args: 
+        ...
+    
+    Raises: 
+        ValueError
+            if any of the inputs are invalid
+
+    Returns: 
+        bool 
+            True if unsafe conditions are detected representing guard trigger
+    """
+    if not isinstance(x, List) or len(x) < 2:
+        raise ValueError('invalid x')
+    if [float != type(x_val) for x_val in x]:
+        raise ValueError('invalid x value types')
+    if not isinstance(ctx, Dict):
+        raise ValueError('invalid ctx')
+    if 'agent_safety_radius' not in ctx:
+        raise ValueError('invalid ctx agent_safety_radius')
+    if 'unsafe_region' not in ctx:
+        raise ValueError('invalid ctx unsafe_region')
+
     agent_safety_radius = ctx['agent_safety_radius']
     agent_circle = Point(x[0:1]).buffer(agent_safety_radius)
 
@@ -146,15 +198,51 @@ def unsafe_conditions_guard(x: List, aux_x: Dict, ctx: Dict, u: Dict = None, dt:
 def virtual_waypoints_guard(aux_x: Dict, x: List = None, ctx: Dict = None, u: Dict = None, dt: float = None) -> bool:
     """
     validate is there are virtual waypoints in the waypoints list 
+
+    Args: 
+        ...
+
+    Raises: 
+        ValueError
+            if aux_x is invalid
+    Returns: 
+        bool 
+            True if there are virtual waypoints present, representing guard trigger
     """
+
+    if aux_x is None or 'waypoints' not in aux_x:
+        raise ValueError('invalid aux_x') 
+    
     return len(aux_x['waypoints']) > 1
 
 def waypoint_reached_guard(x: List, aux_x: Dict, ctx: Dict, u: Dict = None, dt: float = 0.1) -> bool:
     """
     automaton for 
+
+    Args: 
+        ...
+    Raises: 
+        ValueError
+            if any of the inputs are invalid
+    Returns: 
+        bool
+            True if waypoint is reached within acceptance radius representing guard trigger
     """
+    if not isinstance(x, List) or len(x) != 5:
+        raise ValueError('invalid x')
+    if [float != type(x_val) for x_val in x]:
+        raise ValueError('invalid x value types')
+    if aux_x is None or 'waypoints' not in aux_x:
+        raise ValueError('invalid aux_x')
+    if len(aux_x['waypoints']) <= 0:
+        raise ValueError('invalid waypoints')
+    if not isinstance(ctx, Dict): 
+        raise ValueError('invalid ctx')
+    if 'cfg' not in ctx or 'acceptance_radius' not in ctx['cfg']:
+        raise ValueError('invalid ctx cfg acceptance radius')
+
     waypoints_reached_acceptance_radius = ctx["cfg"]["acceptance_radius"] 
 
-    return waypoints_reached_acceptance_radius >= math.dist(
+    return waypoints_reached_acceptance_radius <= math.dist(
         x[0:1], aux_x['waypoints'][-1]
     )

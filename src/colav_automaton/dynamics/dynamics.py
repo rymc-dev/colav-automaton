@@ -15,7 +15,6 @@ def constant_heading_dynamics(x: List, aux_x: Dict = None, ctx: Dict = None, u:D
     dy = 0.0
     dtheta = 0.0
 
-
     return [dx, dy, dtheta]
 
 def flow_los_heading(x: List[float], aux_x: Dict, ctx: Dict, dt: float = 0.1) -> Dict:

@@ -1,0 +1,6 @@
+flowchart TD
+    A([Start]) --> B{Input Valid?}
+    B -->|Yes| C[/aux_x.waypoints.length > 1/]
+    B -->|No| D[/Raise ValueError/]
+    D --> E
+    C --> E[/End/]
