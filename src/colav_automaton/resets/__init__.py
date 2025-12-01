@@ -3,7 +3,7 @@
 """
 from .resets import (
     generate_new_virtual_waypoint,
-    remove_virtual_waypoint
+    pop_waypoint
 )
 
 __author__ = "Ryan McKee <r.mckee@liverpool.ac.uk>"
@@ -14,5 +14,5 @@ __description__ = "resets for hybrid-automaton transitions that will takes all i
 
 __all__ = [
     "generate_new_virtual_waypoint",
-    "remove_virtual_waypoint"
+    "pop_waypoint"
 ]

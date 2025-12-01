@@ -8,7 +8,7 @@ from .guards import (
 )
 
 __author__ = "Ryan McKee <r.mckee@liverpool.ac.uk>"
-__version__ = "0.0.1"
+__version__ = "0.0.3"
 __description__ = "hybrid-automaton framework guards for colav-automaton"
 
 __all__ = [

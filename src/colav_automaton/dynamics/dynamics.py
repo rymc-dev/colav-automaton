@@ -1,8 +1,12 @@
 
 from typing import Dict, List
 import math
+import numpy as np
+from hybrid_automaton import Automaton
 
-def constant_heading_dynamics(x: List, aux_x: Dict = None, ctx: Dict = None, u:Dict = None, dt: float = 0.1): 
+CONSTANT_VELOCITY = 2.0
+
+def constant_heading_dynamics(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState],  u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock): 
     """ 
     returns the continous dynamics for x
 
@@ -11,18 +15,18 @@ def constant_heading_dynamics(x: List, aux_x: Dict = None, ctx: Dict = None, u:D
         x., y., theta., velocity., yaw_rate. in this case
         we are outputting 0
     """
-    dx = 0.0
+    dx = CONSTANT_VELOCITY
     dy = 0.0
     dtheta = 0.0
 
-    return [dx, dy, dtheta]
+    return np.array([dx, dy, dtheta, 0.0, 0.0], dtype=float)
 
-def flow_los_heading(x: List[float], aux_x: Dict, ctx: Dict, dt: float = 0.1) -> Dict:
+def flow_los_heading(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> Dict:
     """Continuous dynamics for Turn-to-LOS mode.
 
     x:      [px, py, theta]
     aux_x:  contains 'waypoints': [(x_wp, y_wp), ...]
-    ctx:    may contain tuning parameters (k_theta, etc)
+    cfg:    may contain tuning parameters (k_theta, etc)
     dt:     integration step (if needed externally)
 
     Returns:
@@ -46,7 +50,7 @@ def flow_los_heading(x: List[float], aux_x: Dict, ctx: Dict, dt: float = 0.1) ->
     e_theta = (desired_heading - theta + math.pi) % (2 * math.pi) - math.pi
 
     # Gain for turning behavior
-    k_theta = ctx.get("k_theta", 1.0)
+    k_theta = cfg.get("k_theta", 1.0)
 
     # Desired angular rate
     dtheta = k_theta * e_theta
@@ -55,4 +59,4 @@ def flow_los_heading(x: List[float], aux_x: Dict, ctx: Dict, dt: float = 0.1) ->
     dx = 0.0
     dy = 0.0
 
-    return [dx, dy, dtheta]
+    return np.array([dx, dy, dtheta, 0.0, 0.0], dtype=float)

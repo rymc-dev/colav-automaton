@@ -4,27 +4,37 @@ import sys
 
 sys.path.append([os.path.join(os.path.dirname(__file__), dirname) for dirname in ['guards', 'resets', 'dynamics', 'integration', 'invariants']])
 
-from guards import *
-from resets import *
-from invariants import *
-from dynamics import *
-from integration import *
+from .guards import *
+from .resets import *
+from .invariants import *
+from .dynamics import *
+from .integration import *
 
-def ColavAutomaton(real_time_mode: bool = False) -> Automaton:
+def ColavAutomaton() -> Automaton:
     """state definitions""" 
+    
+
     q1 = State(
         name="Cruise",
-        initial=True
+        initial=True,
+        flow=constant_heading_dynamics,
+        on_enter=lambda: print('cruise')
     )
     q2 = State(
-        name="Transition to LOS"
+        name="Transition_to_LOS",
+        flow = constant_heading_dynamics,
+        on_enter=lambda: print('T2LOS')
     )
     q3 = State(
-        name="Fallback"
+        name="Fallback",
+        flow=constant_heading_dynamics,
+        on_enter=lambda: print('fallback')
     )
     q4 = State( 
-        name="Waypoint Reached",
-        invariants=[is_goal_waypoint_invariant]
+        name="Waypoint_Reached",
+        invariants=[is_goal_waypoint_invariant],
+        flow=constant_heading_dynamics,
+        on_enter=lambda: print('waypoint_reached')
     )
 
     """transitions""" 
@@ -87,14 +97,10 @@ def ColavAutomaton(real_time_mode: bool = False) -> Automaton:
             q2,
             q3,
             q4
-        ],
-        real_time_mode=real_time_mode,
+        ]
     )
-    ha.activate(
-        [0.0, 0.0, 0.0, 0.0, 0.0],
-        {"waypoints": [(10.0, 10.0), (20.0, 20.0)]}
-    )
-    ha.step()
+
+    return ha
 
 if __name__ == '__main__': 
     automaton = ColavAutomaton(real_time_mode=False)

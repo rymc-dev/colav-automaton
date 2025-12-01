@@ -2,7 +2,10 @@ from finite_time_control import HeadingFTC
 from typing import Tuple
 from typing import Dict
 
-def integrate_simple_vessel_kinematics(x: float, aux_x: Dict, ctx: Dict, u: Dict, dt: float) -> Tuple[float, float, float]:
+from hybrid_automaton import Automaton
+import numpy as np
+
+def integrate_simple_vessel_kinematics(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> Tuple[float, float, float]:
     """
     used for simulating the integration of continuous dynamics
     into a finite time controller

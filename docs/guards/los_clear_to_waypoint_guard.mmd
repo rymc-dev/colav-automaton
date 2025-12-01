@@ -1,6 +1,15 @@
 flowchart TD
-    A[Christmas] -->|Get money| B(Go shopping)
-    B --> C{Let me think}
-    C -->|One| D[Laptop]
-    C -->|Two| E[iPhone]
-    C -->|Three| F[fa:fa-car Car]
+    A([Start: los_clear_to_waypoint_guard]) --> B{Are inputs valid?}
+    B -->|Yes| C[current_waypoint = waypoints.first]
+    B -->|No| D[/Raise ValueError/]
+    D --> J
+
+    C --> E[los = LineString current_position, current_waypoint]
+    E --> F[unsafe_region = Polygon unsafe_area]
+    F --> G{los intersects unsafe_region?}
+
+    G -->|Yes| H[Return True - LOS NOT clear]
+    G -->|No| I[Return False - LOS clear]
+
+    H --> J([End])
+    I --> J

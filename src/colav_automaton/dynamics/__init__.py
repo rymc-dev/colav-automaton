@@ -3,7 +3,8 @@ __version__ = "0.0.1"
 __description__ = "dynamics functions for the states of hybrid-automaton colav-automaton" \
                   ""
 
+from .dynamics import constant_heading_dynamics
 
 __all__ = [
-    
+    'constant_heading_dynamics'
 ]
