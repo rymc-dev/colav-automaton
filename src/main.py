@@ -19,7 +19,7 @@ async def main():
     async def print_state():
         await asyncio.sleep(2.0)  # initial delay
         while True:
-            print(f"{ha._runtime._time_elapsed_active}: {ha._runtime._continous_state.get_continous_state()}")
+            print(f"{ha.get_active_elapsed_time()}: {ha._runtime._continous_state.get_continous_state()}")
             await asyncio.sleep(0.01)
 
     async def runner():

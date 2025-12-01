@@ -1,0 +1,48 @@
+<scenario>
+    <matrix>
+        <width>400.0</width>
+        <height>400.0</height>
+    </matrix>
+    <agent_vessel>
+        <position>50.0, 50.0</position>
+        <orientation>0.4121, 0.5613, -0.3535, 0.6754</orientation>
+        <velocity>4.0</velocity>
+        <yaw_rate>0.05</yaw_rate>
+        <safety_radius>5.0</safety_radius>
+    </agent_vessel>
+    <obstacles>
+        <obstacle>
+            <tag>obstacle_1</tag>
+            <position>70.0, 60.0</position>
+            <orientation>0.9239, 0, 0, 0.3827</orientation>
+            <velocity>2.5</velocity>
+            <yaw_rate>0.03</yaw_rate>
+            <safety_radius>4.0</safety_radius>
+        </obstacle>
+        <obstacle>
+            <tag>obstacle_2</tag>
+            <position>110.0, 40.0</position>
+            <orientation>0.7071, 0, 0, 0.7071</orientation>
+            <velocity>3.5</velocity>
+            <yaw_rate>-0.05</yaw_rate>
+            <safety_radius>3.0</safety_radius>
+        </obstacle>
+        <obstacle>
+            <tag>obstacle_3</tag>
+            <position>30.0, 70.0</position>
+            <orientation>1.0, 0, 0, 0</orientation>
+            <velocity>2.2</velocity>
+            <yaw_rate>0.1</yaw_rate>
+            <safety_radius>5.5</safety_radius>
+        </obstacle>
+        <obstacle>
+            <tag>obstacle_4</tag>
+            <position>90.0, 120.0</position>
+            <orientation>0.7071, 0, 0, 0.7071</orientation>
+            <velocity>1.8</velocity>
+            <yaw_rate>0.0</yaw_rate>
+            <safety_radius>6.0</safety_radius>
+        </obstacle>
+    </obstacles>
+    <dsf>100.5</dsf>
+</scenario>
