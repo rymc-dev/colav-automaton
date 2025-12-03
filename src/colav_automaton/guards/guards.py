@@ -182,10 +182,10 @@ def los_clear_to_waypoint_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.
             True if line of sight to waypoint is NOT clear representing guard trigger
     """
 
-    current_waypoint: List[float, float] = aux_x["waypoints"][-1]
+    current_waypoint: List[float, float] = aux_x['waypoints'].state[0]
 
-    los: LineString = LineString([x[0:1], current_waypoint])
-    unsafe_region: Polygon = Polygon(aux_x["unsafe_region"])
+    los: LineString = LineString([x.get_continous_state()[0:2], current_waypoint])
+    unsafe_region: Polygon = Polygon(aux_x["unsafe_region"].state)
 
     if los.intersects(unsafe_region): 
         intersection = los.intersection(unsafe_region)
@@ -197,7 +197,7 @@ def los_clear_to_waypoint_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.
             intersection = intersection.interpolate(0.5, normalized=True)
 
         intersection_distance = math.dist(
-            x[0:1], (intersection.x, intersection.y)
+            x.get_continous_state()[0:2], (intersection.x, intersection.y)
         )
         if intersection_distance <= cfg['los_distance_threshold']: 
             return True

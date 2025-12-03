@@ -6,7 +6,7 @@ from .invariants import *
 from .dynamics import *
 from .integration import *
 
-def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: float = 1.0, constant_velocity: float = 2.0, acceptance_radius: float = 0.2) -> Automaton:
+def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: float = 1.0, constant_velocity: float = 2.0, acceptance_radius: float = 0.2, los_distance_threshold: float = 30.0, longitudinal_offset_distance: float = 10.0, lateral_offset_distance: float = 10.0) -> Automaton:
     """state definitions""" 
     
 
@@ -39,13 +39,15 @@ def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: fl
     e1 = Transition(
         name="e1",
         to_state=q2,
-        guards=[heading_not_within_tolerance_guard]
+        guards=[heading_not_within_tolerance_guard],
+        priority=1
     )
     e2 = Transition(
         name="e2",
         to_state=q2,
         guards=[los_clear_to_waypoint_guard],
-        reset=generate_new_virtual_waypoint
+        reset=generate_new_virtual_waypoint,
+        priority=0
     )
     e3 = Transition(
         name="e3",
@@ -100,7 +102,10 @@ def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: fl
             'k_theta': k_theta,
             'k_v': k_v,
             'constant_velocity': constant_velocity,
-            'acceptance_radius': acceptance_radius
+            'acceptance_radius': acceptance_radius,
+            'los_distance_threshold': los_distance_threshold,
+            'longitudinal_offset_distance': longitudinal_offset_distance,
+            'lateral_offset_distance': lateral_offset_distance
         }
     )
 
