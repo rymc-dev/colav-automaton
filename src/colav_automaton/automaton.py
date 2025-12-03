@@ -10,7 +10,7 @@ from .invariants import *
 from .dynamics import *
 from .integration import *
 
-def ColavAutomaton() -> Automaton:
+def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: float = 1.0, constant_velocity: float = 2.0, acceptance_radius: float = 0.2) -> Automaton:
     """state definitions""" 
     
 
@@ -22,7 +22,7 @@ def ColavAutomaton() -> Automaton:
     )
     q2 = State(
         name="Transition_to_LOS",
-        flow = constant_heading_dynamics,
+        flow = flow_los_heading,
         on_enter=lambda: print('T2LOS')
     )
     q3 = State(
@@ -49,7 +49,7 @@ def ColavAutomaton() -> Automaton:
         name="e2",
         to_state=q2,
         guards=[los_clear_to_waypoint_guard],
-        # resets=... # TODO: Add the virutal waypoint generation
+        reset=generate_new_virtual_waypoint
     )
     e3 = Transition(
         name="e3",
@@ -85,7 +85,8 @@ def ColavAutomaton() -> Automaton:
     e7 = Transition(
         name="e7",
         to_state=q1,
-        guards=[virtual_waypoints_guard]
+        guards=[virtual_waypoints_guard],
+        reset=pop_waypoint
     )
     q4.add_transition(e7)
 
@@ -97,7 +98,14 @@ def ColavAutomaton() -> Automaton:
             q2,
             q3,
             q4
-        ]
+        ],
+        configuration={
+            'heading_tolerance': heading_tolerance,
+            'k_theta': k_theta,
+            'k_v': k_v,
+            'constant_velocity': constant_velocity,
+            'acceptance_radius': acceptance_radius
+        }
     )
 
     return ha

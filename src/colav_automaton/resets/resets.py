@@ -77,12 +77,10 @@ def generate_new_virtual_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtim
     # reset_output = {'waypoints_state': waypoints_state}
     # self._validate_reset_output(reset_output)
     # return reset_output
-    return None
+    return x, aux_x, u
 
 
-def pop_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock):
+def pop_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> Tuple[Dict]:
     """ """ 
-    # aux_x['waypoints'].pop(0)
-    # return x, aux_x
-
-    return None
+    aux_x['waypoints'].state.pop(0)    
+    return x, aux_x, u

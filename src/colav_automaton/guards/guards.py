@@ -13,7 +13,7 @@ from hybrid_automaton.automaton import Automaton
 import numpy as np
 
 
-def heading_not_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict,  clk: Automaton.Runtime.Clock) -> bool:
+def heading_not_within_tolerance_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict,  clk: Automaton.Runtime.Clock) -> bool:
     """ 
     guard function for hybrid automaton which checks if a heading provided is 
     not within a heading tolerance
@@ -50,15 +50,17 @@ def heading_not_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.R
     Raises: 
         ... #TODO: Change cfg to cfg
     """
-    if not isinstance(x, np.ndarray) or x.dtype != float or x.shape != (5,):
+    if not isinstance(x.get_continous_state(), np.ndarray) or x.get_continous_state().dtype != float or x.get_continous_state().shape != (5,):
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
-    if not isinstance(aux_x, list) or not any(getattr(aux, "name", None) == "waypoints" for aux in aux_x):
+    if not isinstance(aux_x, dict) or 'waypoints' not in aux_x:
         raise ValueError('invalid aux_x for this guard: waypoints not found')
 
+    
+    x_state = x.get_continous_state()
     # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = next(aux for aux in aux_x if getattr(aux, "name", None) == "waypoints")
-    waypoints = waypoints_aux.state
+    waypoints_aux = aux_x['waypoints']
+    waypoints: Automaton.Runtime.AuxiliaryState = waypoints_aux.state
 
     if waypoints is None or len(waypoints) <= 0:
         raise ValueError('invalid waypoints in aux_x')
@@ -71,7 +73,7 @@ def heading_not_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.R
     # except Exception as e:
     #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
     
-    xx, xy, yaw = x[0:3]            # current position + heading
+    xx, xy, yaw = x_state[0:3]            # current position + heading
     wx, wy = waypoints[-1] # waypoint position
 
     # If exactly at the waypoint → no heading mismatch
@@ -120,16 +122,17 @@ def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runti
     Raises:
         ...
     """
-
-    if not isinstance(x, np.ndarray) or x.dtype != float or x.shape != (5,):
+    if not isinstance(x.get_continous_state(), np.ndarray) or x.get_continous_state().dtype != float or x.get_continous_state().shape != (5,):
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
-    if not isinstance(aux_x, list) or not any(getattr(aux, "name", None) == "waypoints" for aux in aux_x):
+    if not isinstance(aux_x, dict) or 'waypoints' not in aux_x:
         raise ValueError('invalid aux_x for this guard: waypoints not found')
 
+    
+    x_state = x.get_continous_state()
     # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = next(aux for aux in aux_x if getattr(aux, "name", None) == "waypoints")
-    waypoints = waypoints_aux.state
+    waypoints_aux = aux_x['waypoints']
+    waypoints: Automaton.Runtime.AuxiliaryState = waypoints_aux.state
 
     if waypoints is None or len(waypoints) <= 0:
         raise ValueError('invalid waypoints in aux_x')
@@ -142,7 +145,7 @@ def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runti
     # except Exception as e:
     #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
     
-    xx, xy, yaw = x[0:3]            # current position + heading
+    xx, xy, yaw = x_state[0:3]            # current position + heading
     wx, wy = waypoints[-1] # waypoint position
 
     # If exactly at the waypoint → no heading mismatch
@@ -239,7 +242,7 @@ def unsafe_conditions_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.Auxi
 
     return agent_circle.intersects(unsafe_region)
 
-def virtual_waypoints_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
+def virtual_waypoints_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
     """
     validate is there are virtual waypoints in the waypoints list 
 
@@ -263,9 +266,9 @@ def virtual_waypoints_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.Auxi
     if aux_x is None or 'waypoints' not in aux_x:
         raise ValueError('invalid aux_x') 
     
-    return len(aux_x['waypoints']) > 1
+    return len(aux_x['waypoints'].state) > 1
 
-def waypoint_reached_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
+def waypoint_reached_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
     """
     automaton for 
 
@@ -284,21 +287,11 @@ def waypoint_reached_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.Auxil
         bool
             True if waypoint is reached within acceptance radius representing guard trigger
     """
-    if not isinstance(x, List) or len(x) != 5:
-        raise ValueError('invalid x')
-    if [float != type(x_val) for x_val in x]:
-        raise ValueError('invalid x value types')
-    if aux_x is None or 'waypoints' not in aux_x:
-        raise ValueError('invalid aux_x')
-    if len(aux_x['waypoints']) <= 0:
-        raise ValueError('invalid waypoints')
-    if not isinstance(cfg, Dict): 
-        raise ValueError('invalid ctx')
-    if 'cfg' not in ctx or 'acceptance_radius' not in ctx['cfg']:
-        raise ValueError('invalid ctx cfg acceptance radius')
+    pos = x.get_continous_state()[0:2]
+    waypoint = aux_x['waypoints'].state[0]
 
-    waypoints_reached_acceptance_radius = ctx["cfg"]["acceptance_radius"] 
+    waypoints_reached_acceptance_radius = cfg.get("acceptance_radius", 20.0)
 
-    return waypoints_reached_acceptance_radius <= math.dist(
-        x[0:1], aux_x['waypoints'][-1]
+    return waypoints_reached_acceptance_radius >= math.dist(
+        pos, waypoint
     )
