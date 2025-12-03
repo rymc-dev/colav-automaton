@@ -11,10 +11,10 @@ import numpy as np
 from hybrid_automaton_evaluation.figure_generator import continuous_states_over_time_fig, auxiliary_states_over_time_fig, automaton_states_over_time, transitions_times_over_time_fig
 
 async def main():
-    ha: Automaton = ColavAutomaton(heading_tolerance=0.2, k_theta=1.0, constant_velocity=2.0, acceptance_radius=50)
+    ha: Automaton = ColavAutomaton(heading_tolerance=0.2, k_theta=1.0, constant_velocity=2.0, acceptance_radius=5)
     x0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0], dtype=float)
     aux_t0 = {
-        "waypoints": [np.array([50.0, 50.0]), np.array([100.0, 100.0])],
+        "waypoints": [np.array([20,20]), np.array([-50, -50]), np.array([-50, 100])],
     }
 
     print (str(ha))
@@ -24,7 +24,7 @@ async def main():
     await ha_runner.run(
         x0=x0,
         aux_x0=aux_t0,
-        duration=5.0,
+        duration=20.0,
         real_time_mode=False,
         integrate=True,
         dt=0.01,
@@ -37,13 +37,34 @@ async def main():
     fig1 = continuous_states_over_time_fig(results['continuous_states'])
     fig2 = auxiliary_states_over_time_fig(results['auxiliary_states'])
     fig3 = automaton_states_over_time(results['automaton_states'])
-    fig4 = transitions_times_over_time_fig(results['transition_times'])
+    fig4 = transitions_times_over_time_fig(results['transition_times'])    
+    
+    x = results['continuous_states']
+    def plot_xy_position_over_time():
+        timestamps = [continuous_state[0] for continuous_state in x]
+        continuous_state_values = np.array([continuous_state[1] for continuous_state in x])
+        
+        # Extract x and y positions (indices 0 and 1 of the state vector)
+        x_positions = continuous_state_values[:, 0]
+        y_positions = continuous_state_values[:, 1]
+        
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        # Plot x vs y (trajectory in 2D space)
+        ax.plot(x_positions, y_positions, label='Vehicle Trajectory')
+        ax.set_title('Hybrid Automaton <v0.0.4> - XY Position Trajectory', fontsize=16, y=1.02)
+        ax.set_xlabel("X Position (m)", fontsize=12)
+        ax.set_ylabel("Y Position (m)", fontsize=12)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        ax.axis('equal')  # Equal aspect ratio for proper visualization
+        
+        fig.tight_layout()
+        return fig
+
+    fig5 = plot_xy_position_over_time()
+
     plt.show()
-    
-    import time 
-    
-    time.sleep(10.0)
-    
     
 
     # async def print_state():

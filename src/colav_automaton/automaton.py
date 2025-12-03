@@ -1,8 +1,4 @@
 from hybrid_automaton import Automaton, State, Transition
-import os
-import sys
-
-sys.path.append([os.path.join(os.path.dirname(__file__), dirname) for dirname in ['guards', 'resets', 'dynamics', 'integration', 'invariants']])
 
 from .guards import *
 from .resets import *

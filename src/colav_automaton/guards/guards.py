@@ -74,7 +74,7 @@ def heading_not_within_tolerance_guard(x: Automaton.Runtime.ContinousState, aux_
     #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
     
     xx, xy, yaw = x_state[0:3]            # current position + heading
-    wx, wy = waypoints[-1] # waypoint position
+    wx, wy = waypoints[0] # waypoint position
 
     # If exactly at the waypoint → no heading mismatch
     if xx == wx and xy == wy:
@@ -146,7 +146,7 @@ def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runti
     #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
     
     xx, xy, yaw = x_state[0:3]            # current position + heading
-    wx, wy = waypoints[-1] # waypoint position
+    wx, wy = waypoints[0] # waypoint position
 
     # If exactly at the waypoint → no heading mismatch
     if xx == wx and xy == wy:
