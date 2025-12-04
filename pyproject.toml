@@ -41,18 +41,22 @@ extra-dependencies = [
   "mypy>=1.0.0",
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/colav_automaton tests}"
+check = "mypy --install-types --non-interactive {args:src/colav_automaton src/colav_automaton_evaluation tests}"
 
 [tool.coverage.run]
-source_pkgs = ["colav_automaton", "tests"]
+source_pkgs = ["colav_automaton", 'colav_automaton_evaluation', "tests"]
 branch = true
 parallel = true
 omit = [
   "src/colav_automaton/__about__.py",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/colav_automaton", "src/colav_automaton_evaluation"]
+
 [tool.coverage.paths]
 colav_automaton = ["src/colav_automaton", "*/colav-automaton/src/colav_automaton"]
+colav_autmoaton_evaluations = ["src/colav_automaton_evaluation", "*/colav-automaton/src/colav_automaton_evaluation"]
 tests = ["tests", "*/colav-automaton/tests"]
 
 [tool.coverage.report]
