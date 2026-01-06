@@ -6,106 +6,80 @@ from .invariants import *
 from .dynamics import *
 from .integration import *
 
-def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: float = 1.0, constant_velocity: float = 2.0, acceptance_radius: float = 0.2, los_distance_threshold: float = 30.0, longitudinal_offset_distance: float = 10.0, lateral_offset_distance: float = 10.0) -> Automaton:
-    """state definitions""" 
-    
+def ColavAutomaton(waypoint_x: float = 10.0, waypoint_y: float = 9.0, obstacle_x: float = 5.0, obstacle_y: float = 4.5, Cs: float = 2.0, a: float = 1.67, v: float = 12.0, eta: float = 3.5, tp: float = 1.0) -> Automaton:
 
-    q1 = State(
-        name="Cruise",
+    delta = max(5.0, v * tp * 0.5)
+    dsafe = Cs + (v*2) * tp
+
+    """state definitions"""
+    S1 = State(
+        name="WAYPOINT_REACHING",
         initial=True,
-        flow=constant_heading_dynamics,
-        on_enter=lambda: print('cruise')
+        flow=S1_waypoint_reaching_dynamics,
+        integartion_method=integrate_ship_dynamics_with_heading_normalization,
+        on_enter=lambda: print("🎯 S1: WAYPOINT_REACHING")
     )
-    q2 = State(
-        name="Transition_to_LOS",
-        flow = flow_los_heading,
-        on_enter=lambda: print('T2LOS')
+
+    S2 = State(
+        name="COLLISION_AVOIDANCE",
+        flow=S2_collision_avoidance_dynamics,
+        integartion_method=integrate_ship_dynamics_with_heading_normalization,
+        on_enter=lambda: print("⚠️  S2: COLLISION_AVOIDANCE")
     )
-    q3 = State(
-        name="Fallback",
-        flow=constant_heading_dynamics,
-        on_enter=lambda: print('fallback')
-    )
-    q4 = State( 
-        name="Waypoint_Reached",
-        invariants=[is_goal_waypoint_invariant],
-        flow=constant_heading_dynamics,
-        on_enter=lambda: print('waypoint_reached')
+
+    S3 = State(
+        name="CONSTANT_CONTROL",
+        flow=S3_constant_control_dynamics,
+        integartion_method=integrate_ship_dynamics_with_heading_normalization,
+        on_enter=lambda: print("🔄 S3: CONSTANT_CONTROL")
     )
 
     """transitions""" 
 
-    # NOTE: transitions from CRUISE (q1)
-    e1 = Transition(
-        name="e1",
-        to_state=q2,
-        guards=[heading_not_within_tolerance_guard],
+    # Transitions
+    S1.add_transition(Transition(
+        name="avoid", 
+        to_state=S2, 
+        guards=[G11_and_G12_guard], 
+        reset=reset_enter_avoidance,
         priority=1
-    )
-    e2 = Transition(
-        name="e2",
-        to_state=q2,
-        guards=[los_clear_to_waypoint_guard],
-        reset=generate_new_virtual_waypoint,
-        priority=0
-    )
-    e3 = Transition(
-        name="e3",
-        to_state=q3,
-        guards=[unsafe_conditions_guard]
-    )
-    e4 = Transition(
-        name="e4",
-        to_state=q4,
-        guards=[waypoint_reached_guard]
-    )
-    q1.add_transitions([e1, e2, e3, e4])
-
-    # NOTE: transitions from Turn to LOS (q2)
-    e5 = Transition(
-        name = "e5",
-        to_state=q1,
-        guards=[heading_within_tolerance_guard]
-    )
-    e6 = Transition( # NOTE: TO Fallback if unsafe
-        name="e6",
-        to_state=q1,
-        guards=[unsafe_conditions_guard]
-    )
-    # TODO: Maybe should have transition back to cruise
-    q2.add_transitions([e5, e6])
-
-    # NOTE: transitions from FALLBACK (q3)
-    # e7 = None
-    # q3.add_transition(e7)
-
-    # NOTE: from goal reached
-    e7 = Transition(
-        name="e7",
-        to_state=q1,
-        guards=[virtual_waypoints_guard],
-        reset=pop_waypoint
-    )
-    q4.add_transition(e7)
+    ))
+    
+    S2.add_transition(Transition(
+        name="hold", 
+        to_state=S3, 
+        guards=[L1_bar_or_L2_bar_guard], 
+        priority=1
+    ))
+    
+    S3.add_transition(Transition(
+        name="resume", 
+        to_state=S1, 
+        guards=[not_G11_guard], 
+        reset=reset_exit_avoidance,
+        priority=1
+    ))
 
 
     ha = Automaton(
         name="COLAV Automaton",
         states=[
-            q1,
-            q2,
-            q3,
-            q4
+            S1,
+            S2,
+            S3
         ],
         configuration={
-            'heading_tolerance': heading_tolerance,
-            'k_theta': k_theta,
-            'k_v': k_v,
-            'constant_velocity': constant_velocity,
-            'acceptance_radius': acceptance_radius,
-            'los_distance_threshold': los_distance_threshold,
-            'longitudinal_offset_distance': longitudinal_offset_distance,
-            'lateral_offset_distance': lateral_offset_distance
+            'waypoint_x': waypoint_x,
+            'waypoint_y': waypoint_y,
+            'obstacle_x': obstacle_x,
+            'obstacle_y': obstacle_y,
+            'Cs': Cs,
+            'dsafe': dsafe,
+            'delta': delta,
+            'a': a,
+            'v': v,
+            'eta': eta,
+            'tp': tp
         }
     )
 

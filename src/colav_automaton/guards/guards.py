@@ -1,297 +1,272 @@
 # !/usr/bin/python3 
 # <---utf-8--->
 
-""" 
-guards for colav_automaton hybrid automaton which is built on the hybrid_automaton framework 
-packages. 
-"""
-
-import math
-from typing import Dict, List
-from shapely.geometry import Polygon, LineString, Point
-from hybrid_automaton.automaton import Automaton
 import numpy as np
+from typing import Dict
+from hybrid_automaton import Automaton
+from shapely.geometry import LineString, Polygon, Point
+from shapely.ops import nearest_points 
 
+# ============================================================================
+# Ship Navigation Guards
+# ============================================================================
 
-def heading_not_within_tolerance_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict,  clk: Automaton.Runtime.Clock) -> bool:
-    """ 
-    guard function for hybrid automaton which checks if a heading provided is 
-    not within a heading tolerance
-
-    Docs: 
-        Flowchart:
-            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/heading_not_within_tolerance_guard.mmd
-        DataTable: 
-
-
-    Args: 
-        x: List
-            represents continous state of agent in this case
-            agent continous state is [x: float, y: float, theta: float]
-            theta should be in radians
-        aux_x: Dict
-            represents auxielary continous states within state space 
-            in this case we utilize aux_x["waypoints"] = [[wx, wy], [wx, wy]]
-            to get the current_waypoint we are navigating towards
-        cfg: Dict
-            represents context values of the hybrid automaton, this can include
-            automaton configuration and also details regarding time since last transition
-            and so on. In this case we use cfg['cfg']['heading_tolerance'] which is a float
-            value representing heading_tolerance in radians. 
-        u: Dict
-            this are control inputs we expected, this this case is is None by default and not used
-        # dt: float
-        #     delta time between guard checks, this is not used within this guard however, just 
-        #     a required arg for integration with automaton guards # TODO: remove this, it's not needed anymore!
-
-    Returns: 
-        Returns True if heading error is OUTSIDE tolerance.
-
-    Raises: 
-        ... #TODO: Change cfg to cfg
+def create_unsafe_set_polygon(ox: float, oy: float, Cs: float) -> Polygon:
     """
-    if not isinstance(x.get_continous_state(), np.ndarray) or x.get_continous_state().dtype != float or x.get_continous_state().shape != (5,):
-        raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
+    Create unsafe set B∞(po, Cs) as a Shapely Polygon.
 
-    if not isinstance(aux_x, dict) or 'waypoints' not in aux_x:
-        raise ValueError('invalid aux_x for this guard: waypoints not found')
+    Args:
+        ox, oy: Obstacle center position
+        Cs: Safe distance from obstacle
 
-    
-    x_state = x.get_continous_state()
-    # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = aux_x['waypoints']
-    waypoints: Automaton.Runtime.AuxiliaryState = waypoints_aux.state
-
-    if waypoints is None or len(waypoints) <= 0:
-        raise ValueError('invalid waypoints in aux_x')
-    
-    if not isinstance(cfg, Dict):
-        raise ValueError('invalid cfg')
-    
-    # try: 
-    #     cfg['heading_tolerance']
-    # except Exception as e:
-    #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
-    
-    xx, xy, yaw = x_state[0:3]            # current position + heading
-    wx, wy = waypoints[0] # waypoint position
-
-    # If exactly at the waypoint → no heading mismatch
-    if xx == wx and xy == wy:
-        return False
-
-    # desired heading (radians)
-    desired = math.atan2(wy - xy, wx - xx)
-
-    # normalized heading error in [-π, π]
-    error = math.atan2(math.sin(desired - yaw), math.cos(desired - yaw))
-
-    # True only if heading error exceeds tolerance
-    return abs(error) > cfg["heading_tolerance"]
-
-def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
-    """ 
-    Guard function for hybrid automaton which checks if a heading provided is 
-    within a heading tolerance.
-
-    Docs: 
-        Flowchart: 
-            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/heading_within_tolerance_guard.mmd
-        DataTable: 
-            ...
-    
-    Args: 
-        x: List
-            Represents continuous state of the agent.
-            Agent continuous state is [x: float, y: float, theta: float]
-            theta should be in radians.
-        aux_x: Dict
-            Represents auxiliary continuous states.
-            Uses aux_x["waypoints"] = [[wx, wy], [wx, wy]] for current navigation targets.
-        cfg: Dict
-            Context values of the hybrid automaton.
-            Uses cfg['cfg']['heading_tolerance'] (float, in radians).
-        u: Dict
-            Control inputs (unused for this guard).
-        dt: float
-            Delta time between guard checks (unused).
-
-    Returns: 
-        Returns True if heading error is WITHIN tolerance.
-
-    Raises:
-        ...
+    Returns:
+        Polygon: Square unsafe set centered at obstacle
     """
-    if not isinstance(x.get_continous_state(), np.ndarray) or x.get_continous_state().dtype != float or x.get_continous_state().shape != (5,):
-        raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
+    return Polygon([
+        (ox - Cs, oy - Cs),  # V1 - bottom left
+        (ox + Cs, oy - Cs),  # V2 - bottom right
+        (ox + Cs, oy + Cs),  # V3 - top right
+        (ox - Cs, oy + Cs),  # V4 - top left 
+    ])
 
-    if not isinstance(aux_x, dict) or 'waypoints' not in aux_x:
-        raise ValueError('invalid aux_x for this guard: waypoints not found')
 
-    
-    x_state = x.get_continous_state()
-    # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = aux_x['waypoints']
-    waypoints: Automaton.Runtime.AuxiliaryState = waypoints_aux.state
-
-    if waypoints is None or len(waypoints) <= 0:
-        raise ValueError('invalid waypoints in aux_x')
-    
-    if not isinstance(cfg, Dict):
-        raise ValueError('invalid cfg')
-    
-    # try: 
-    #     cfg['heading_tolerance']
-    # except Exception as e:
-    #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
-    
-    xx, xy, yaw = x_state[0:3]            # current position + heading
-    wx, wy = waypoints[0] # waypoint position
-
-    # If exactly at the waypoint → no heading mismatch
-    if xx == wx and xy == wy:
-        return False
-
-    # desired heading (radians)
-    desired = math.atan2(wy - xy, wx - xx)
-
-    # normalized heading error in [-π, π]
-    error = math.atan2(math.sin(desired - yaw), math.cos(desired - yaw))
-
-    # True only if heading error exceeds tolerance
-    return abs(error) < cfg["heading_tolerance"]
-
-def los_clear_to_waypoint_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool: 
-    """  
-    
-    Docs: 
-        Flowchart: 
-            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/los_clear_to_waypoint_guard.mmd
-        DataTable: 
-            ...
-
-    Args: 
-        ... 
-
-    Raises: 
-        ValueError
-        if any of the inputs are invalid
-
-    Returns: 
-        bool
-            True if line of sight to waypoint is NOT clear representing guard trigger
+def create_los_cone(pos_x: float, pos_y: float, xw: float, yw: float, v: float, tp: float) -> Polygon:
     """
+    Create LOS cone F(p(t)) = conv(B₂(p(t), vtp), pw) as a Shapely Polygon.
 
-    current_waypoint: List[float, float] = aux_x['waypoints'].state[0]
+    The cone is formed by the convex hull of:
+    - A circle of radius vtp around current position
+    - The waypoint
 
-    los: LineString = LineString([x.get_continous_state()[0:2], current_waypoint])
-    unsafe_region: Polygon = Polygon(aux_x["unsafe_region"].state)
+    We approximate the circle with vertices perpendicular to the LOS direction.
 
-    if los.intersects(unsafe_region): 
-        intersection = los.intersection(unsafe_region)
+    Args:
+        pos_x, pos_y: Current ship position
+        xw, yw: Waypoint position
+        v: Ship velocity
+        tp: Prescribed time
 
-        if intersection.is_empty:
-            return False
+    Returns:
+        Polygon: LOS cone as convex polygon
+    """
+    ship_to_waypoint = np.array([xw - pos_x, yw - pos_y])
+    dist_to_waypoint = np.linalg.norm(ship_to_waypoint)
+
+    if dist_to_waypoint < 1e-6:
+        # At waypoint, return point
+        return Point(pos_x, pos_y).buffer(0.01)
+
+    # Unit vector toward waypoint
+    unit_to_waypoint = ship_to_waypoint / dist_to_waypoint
+
+    # Perpendicular vector (rotate 90 degrees)
+    perp_vector = np.array([-unit_to_waypoint[1], unit_to_waypoint[0]])
+
+    # Radius of uncertainty circle
+    radius = v * tp
+
+    # Create cone: left edge, ship position with radius, right edge, waypoint
+    left_point = np.array([pos_x, pos_y]) + radius * perp_vector
+    right_point = np.array([pos_x, pos_y]) - radius * perp_vector
+
+    # Convex hull forms a triangle/cone
+    cone_points = [
+        tuple(left_point),
+        tuple(right_point),
+        (xw, yw)
+    ]
+
+    return Polygon(cone_points)
+
+
+def check_G11(pos_x: float, pos_y: float, ox: float, oy: float, xw: float, yw: float, v: float, tp: float, Cs: float) -> bool:
+    """
+    G11: Check if waypoint LOS set F(p(t)) intersects unsafe set.
+
+    F(p(t)) = conv(B₂(p(t), vtp), pw)
+
+    Args:
+        pos_x, pos_y: Current ship position
+        ox, oy: Obstacle center position
+        xw, yw: Waypoint position
+        v: Ship velocity
+        tp: Prescribed time
+        Cs: Safe distance from obstacle
+
+    Returns:
+        bool: True if LOS cone intersects unsafe set
+    """
+    # Create geometric objects
+    unsafe_set = create_unsafe_set_polygon(ox, oy, Cs)
+    los_cone = create_los_cone(pos_x, pos_y, xw, yw, v, tp)
+
+    # Check intersection
+    return unsafe_set.intersects(los_cone)
+
+
+def check_G12(pos_x: float, pos_y: float, ox: float, oy: float, dsafe: float) -> bool:
+    """
+    G12: Check if distance to obstacle <= dsafe
+    
+    Args:
+        pos_x, pos_y: Current ship position
+        ox, oy: Obstacle center position
+        dsafe: Safe distance threshold (Cs + vtp)
         
-        if isinstance(intersection, LineString):
-            intersection = intersection.interpolate(0.5, normalized=True)
+    Returns:
+        bool: True if within safe distance
+    """
+    ds = np.sqrt((pos_x - ox)**2 + (pos_y - oy)**2)
+    return ds <= dsafe
 
-        intersection_distance = math.dist(
-            x.get_continous_state()[0:2], (intersection.x, intersection.y)
-        )
-        if intersection_distance <= cfg['los_distance_threshold']: 
-            return True
 
-    return False
-
-def unsafe_conditions_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool: 
-    """  
+def G11_and_G12_guard(
+    x: Automaton.Runtime.ContinousState,
+    aux_x: Dict[str, Automaton.Runtime.AuxiliaryState],
+    u: Dict[str, Automaton.Runtime.ControlInput],
+    cfg: Dict,
+    clk: Automaton.Runtime.Clock
+) -> bool:
+    """
+    Guard for S1 -> S2 transition: Enter collision avoidance
     
-    Docs: 
-        flowchart:
-            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/unsafe_conditions_guard.mmd
-        DataTable: 
-            ...
+    Activates when obstacle is in path (G11) AND close enough (G12)
+        
+    Args:
+        x: Continuous state [x, y, psi]
+        aux_x: Auxiliary states
+        u: Control inputs 
+        cfg: Configuration containing waypoint, obstacle, v, tp, Cs, dsafe
+        clk: Clock
+        
+    Returns:
+        bool: True if should enter collision avoidance
+    """
+    state = x.get_continous_state()
     
-    Args: 
-        ...
+    # Compute distance to obstacle
+    ds = np.sqrt((state[0] - cfg['obstacle_x'])**2 + 
+                (state[1] - cfg['obstacle_y'])**2)
+    G12 = ds <= cfg['dsafe']
     
-    Raises: 
-        ValueError
-            if any of the inputs are invalid
-
-    Returns: 
-        bool 
-            True if unsafe conditions are detected representing guard trigger
-    """
-    if not isinstance(x, List) or len(x) < 2:
-        raise ValueError('invalid x')
-    if [float != type(x_val) for x_val in x]:
-        raise ValueError('invalid x value types')
-    if not isinstance(cfg, Dict):
-        raise ValueError('invalid cfg')
-    if 'agent_safety_radius' not in cfg:
-        raise ValueError('invalid cfg agent_safety_radius')
-    if 'unsafe_region' not in cfg:
-        raise ValueError('invalid cfg unsafe_region')
-
-    agent_safety_radius = cfg['agent_safety_radius']
-    agent_circle = Point(x[0:1]).buffer(agent_safety_radius)
-
-    unsafe_region: Polygon = Polygon(cfg['unsafe_region'])
-
-    return agent_circle.intersects(unsafe_region)
-
-def virtual_waypoints_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
-    """
-    validate is there are virtual waypoints in the waypoints list 
-
-    Docs: 
-        flowchart: 
-            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/virtual_waypoints_guard.mmd
-        DataTable: 
-            ...
-
-    Args: 
-        ...
-
-    Raises: 
-        ValueError
-            if aux_x is invalid
-    Returns: 
-        bool 
-            True if there are virtual waypoints present, representing guard trigger
-    """
-
-    if aux_x is None or 'waypoints' not in aux_x:
-        raise ValueError('invalid aux_x') 
-    
-    return len(aux_x['waypoints'].state) > 1
-
-def waypoint_reached_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
-    """
-    automaton for 
-
-    Docs: 
-        flowchart: 
-            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/waypoint_reached_guard.mmd
-        DataTable: 
-            ...
-
-    Args: 
-        ...
-    Raises: 
-        ValueError
-            if any of the inputs are invalid
-    Returns: 
-        bool
-            True if waypoint is reached within acceptance radius representing guard trigger
-    """
-    pos = x.get_continous_state()[0:2]
-    waypoint = aux_x['waypoints'].state[0]
-
-    waypoints_reached_acceptance_radius = cfg.get("acceptance_radius", 20.0)
-
-    return waypoints_reached_acceptance_radius >= math.dist(
-        pos, waypoint
+    G11 = check_G11(
+        state[0], state[1],
+        cfg['obstacle_x'], cfg['obstacle_y'],
+        cfg['waypoint_x'], cfg['waypoint_y'],
+        cfg['v'], cfg['tp'], cfg['Cs']
     )
+    
+    return G11 and G12
+
+
+def L1_check(pos_x: float, pos_y: float, v1_x: float, v1_y: float, delta: float) -> bool:
+    """
+    L1: Check if ||p(t) - V1|| > delta (not yet reached V1)
+    
+    Args:
+        pos_x, pos_y: Current ship position
+        v1_x, v1_y: Virtual waypoint V1 position
+        delta: Arrival tolerance
+        
+    Returns:
+        bool: True if not yet reached V1
+    """
+    dist_to_v1 = np.sqrt((pos_x - v1_x)**2 + (pos_y - v1_y)**2)
+    return dist_to_v1 > delta
+
+
+def L2_check(pos_x: float, pos_y: float, psi: float, v1_x: float, v1_y: float) -> bool:
+    """
+    L2: Check if V1 is ahead of ship (within ±π/2 of heading)
+    
+    Args:
+        pos_x, pos_y: Current ship position
+        psi: Current heading
+        v1_x, v1_y: Virtual waypoint V1 position
+        
+    Returns:
+        bool: True if V1 is ahead
+    """
+    angle_to_v1 = np.arctan2(v1_y - pos_y, v1_x - pos_x)
+    relative_angle = np.arctan2(np.sin(angle_to_v1 - psi), np.cos(angle_to_v1 - psi))
+    return -np.pi/2 < relative_angle < np.pi/2
+
+
+def L1_bar_or_L2_bar_guard(
+    x: Automaton.Runtime.ContinousState,
+    aux_x: Dict[str, Automaton.Runtime.AuxiliaryState],
+    u: Dict[str, Automaton.Runtime.ControlInput],
+    cfg: Dict,
+    clk: Automaton.Runtime.Clock
+) -> bool:
+    """
+    Guard for S2 -> S3 transition: Enter constant control
+    
+    Activates when V1 reached (L1) OR V1 is behind (L2)
+    
+    Docs:
+        Corresponds to guard L1 ∨ L2 in ship navigation automaton
+        
+    Args:
+        x: Continuous state [x, y, psi]
+        aux_x: Auxiliary states 
+        u: Control inputs 
+        cfg: Configuration containing delta and ca_controller
+        clk: Clock
+        
+    Returns:
+        bool: True if should enter constant control mode 
+    """
+    state = x.get_continous_state()
+    
+    # Need virtual waypoint from controller (set by dynamics)
+    if 'ca_controller' not in cfg or cfg['ca_controller'] is None:
+        return False
+    
+    if cfg['ca_controller'].virtual_waypoint is None:
+        return False
+    
+    v1_x, v1_y = cfg['ca_controller'].virtual_waypoint
+    
+    L1 = L1_check(state[0], state[1], v1_x, v1_y, cfg['delta'])
+    L2 = L2_check(state[0], state[1], state[2], v1_x, v1_y)
+    
+    return (not L1) or (not L2)
+
+
+def not_G11_guard(
+    x: Automaton.Runtime.ContinousState,
+    aux_x: Dict[str, Automaton.Runtime.AuxiliaryState],
+    u: Dict[str, Automaton.Runtime.ControlInput],
+    cfg: Dict,
+    clk: Automaton.Runtime.Clock
+) -> bool:
+    """
+    Guard for S3 -> S1 transition: Resume waypoint reaching
+    
+    Activates when LOS to waypoint is clear (G11)
+    
+    Docs:
+        Corresponds to guard G11 in ship navigation automaton
+        
+    Args:
+        x: Continuous state [x, y, psi]
+        aux_x: Auxiliary states 
+        u: Control inputs 
+        cfg: Configuration containing waypoint, obstacle, v, tp, Cs
+        clk: Clock
+        
+    Returns:
+        bool: True if LOS is clear and can resume waypoint reaching
+    """
+    state = x.get_continous_state()
+    
+    G11 = check_G11(
+        state[0], state[1],
+        cfg['obstacle_x'], cfg['obstacle_y'],
+        cfg['waypoint_x'], cfg['waypoint_y'],
+        cfg['v'], cfg['tp'], cfg['Cs']
+    )
+    
+    return not G11 
+    

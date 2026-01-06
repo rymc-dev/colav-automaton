@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 from colav_automaton import ColavAutomaton
+from colav_automaton.integration import normalize_heading_in_results # For visualisation
 from hybrid_automaton import Automaton
 from hybrid_automaton_runner import AutomatonRunner
 import asyncio
@@ -11,21 +12,27 @@ import numpy as np
 from hybrid_automaton_evaluation.figure_generator import continuous_states_over_time_fig, auxiliary_states_over_time_fig, automaton_states_over_time, transitions_times_over_time_fig
 
 async def main():
-    ha: Automaton = ColavAutomaton(heading_tolerance=0.2, k_theta=1.0, constant_velocity=2.0, acceptance_radius=20, los_distance_threshold=100, longitudinal_offset_distance=50.0, lateral_offset_distance=50.0)
-    x0 = np.array([-200.0, -200.0, 0.0, 0.0, 0.0], dtype=float)
-    aux_t0 = {
-        "waypoints": [np.array([200, 200]), np.array([-200, 200]), np.array([-100, 80]), np.array([200, -200])],
-        "unsafe_region": [
-            np.array([20, 20]), 
-            np.array([-50, -50]),
-            np.array([50, -50]),
-            np.array([50, 100]),
-            np.array([-50, 100])
-        ]
-    }
+    # Ship Navigation Automaton with prescribed-time control
+    ha: Automaton = ColavAutomaton(
+        waypoint_x=10.0,      # Target waypoint
+        waypoint_y=9.0,
+        obstacle_x=5.0,       # Obstacle center
+        obstacle_y=4.5,
+        Cs=2.0,               # Safe distance from obstacle
+        a=1.67,               # System parameter
+        v=12.0,               # Ship velocity (m/s) - constant
+        eta=3.5,              # Controller gain 
+        tp=1.0                # Prescribed time
+    )
+    
+    # Initial state: [x, y, psi] -
+    x0 = np.array([0.0, 0.0, 0.0], dtype=float)  # Start at origin, heading 0 rad
+    
+    # set to None or empty dict
+    aux_t0 = {}
 
-    print (str(ha))
-    print (repr(ha))
+    print(str(ha))
+    print(repr(ha))
     
     ha_runner: AutomatonRunner = AutomatonRunner(ha, sampling_rate=0.001)
     await ha_runner.run(
@@ -38,27 +45,17 @@ async def main():
         collect_control=False
     )
     
-
     results = ha_runner.get_results()
-    print (results)
 
-    
+    # Normalize heading angles to [-π, π] for visualization
+    results = normalize_heading_in_results(results)
 
-    # async def print_state():
-    #     await asyncio.sleep(2.0)  # initial delay
-    #     while True:
-    #         print(f"{ha.get_active_elapsed_time()}: {ha._runtime._continous_state.get_continous_state()}")
-    #         await asyncio.sleep(0.01)
+    print(results)
 
-    # async def runner():
-    #     await ha.activate(x0=x0, aux_x0=aux_t0, dt=0.1)
-
-    # # Create tasks inside the running loop
-    # t1 = asyncio.create_task(print_state())
-    # t2 = asyncio.create_task(runner())
-    
-
-    # await asyncio.gather(t1, t2)
+    # Generate plots - pass the specific lists, not the full results dict
+    continuous_states_over_time_fig(results['continuous_states'])
+    automaton_states_over_time(results['automaton_states'])
+    transitions_times_over_time_fig(results['transition_times'])
 
 # Run the event loop
 asyncio.run(main())

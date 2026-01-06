@@ -1,10 +1,13 @@
 from .guards import (
-    heading_not_within_tolerance_guard,
-    heading_within_tolerance_guard,
-    los_clear_to_waypoint_guard,
-    unsafe_conditions_guard,
-    virtual_waypoints_guard,
-    waypoint_reached_guard
+    check_G11,
+    check_G12,
+    G11_and_G12_guard,
+    L1_check,
+    L2_check,
+    L1_bar_or_L2_bar_guard,
+    not_G11_guard,
+    create_unsafe_set_polygon,
+    create_los_cone
 )
 
 __author__ = "Ryan McKee <r.mckee@liverpool.ac.uk>"
@@ -12,10 +15,13 @@ __version__ = "0.0.3"
 __description__ = "hybrid-automaton framework guards for colav-automaton"
 
 __all__ = [
-    "heading_not_within_tolerance_guard",
-    "heading_within_tolerance_guard",
-    "los_clear_to_waypoint_guard",
-    "unsafe_conditions_guard", 
-    "virtual_waypoints_guard",
-    "waypoint_reached_guard"
+    "check_G11",
+    "check_G12",
+    "G11_and_G12_guard",
+    "L1_check",
+    "L2_check",
+    "L1_bar_or_L2_bar_guard",
+    "not_G11_guard",
+    "create_unsafe_set_polygon",
+    "create_los_cone"
 ]
