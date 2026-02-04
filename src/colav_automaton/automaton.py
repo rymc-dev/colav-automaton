@@ -1,15 +1,35 @@
-from hybrid_automaton import Automaton, State, Transition
+import os
+import sys
 
-from .guards import *
-from .resets import *
-from .invariants import *
-from .dynamics import *
-from .integration import *
+sys.path.append(os.path.dirname(__file__))
+# base_dir = os.path.dirname(os.path.abspath(__file__))
 
-def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: float = 1.0, constant_velocity: float = 2.0, acceptance_radius: float = 0.2, los_distance_threshold: float = 30.0, longitudinal_offset_distance: float = 10.0, lateral_offset_distance: float = 10.0) -> Automaton:
+# for subdir in ['guards', 'dynamics', 'invariants', 'integration', 'resets']:
+#     sys.path.append(os.path.join(base_dir, subdir))
+
+from hybrid_automaton import Automaton
+from hybrid_automaton.definition import State
+from hybrid_automaton.definition import Transition
+
+from guards import *
+from resets import *
+from invariants import *
+from dynamics import *
+from integration import *
+
+
+def ColavAutomaton(
+    heading_tolerance: float = 0.2, 
+    k_theta: float = 1.0, 
+    k_v: float = 1.0, 
+    constant_velocity: float = 2.0, 
+    acceptance_radius: float = 0.2, 
+    los_distance_threshold: float = 30.0, 
+    longitudinal_offset_distance: float = 10.0, 
+    lateral_offset_distance: float = 10.0
+) -> Automaton:
     """state definitions""" 
     
-
     q1 = State(
         name="Cruise",
         initial=True,
@@ -91,6 +111,7 @@ def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: fl
 
     ha = Automaton(
         name="COLAV Automaton",
+        version="0.0.2",
         states=[
             q1,
             q2,
@@ -111,5 +132,19 @@ def ColavAutomaton(heading_tolerance: float = 0.2, k_theta: float = 1.0, k_v: fl
 
     return ha
 
+def main():
+    from hybrid_automaton import RunResult 
+    import asyncio 
+    ha: Automaton = ColavAutomaton()
+    results = None
+    
+    async def run():
+        results: RunResult = await ha.activate(
+            initial_continuous_state=None,
+            initial_auxiliary_states=None,
+        )
+        
+    asyncio.run(run())
+
 if __name__ == '__main__': 
-    automaton = ColavAutomaton(real_time_mode=False)
+    main()

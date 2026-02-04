@@ -9,11 +9,11 @@ packages.
 import math
 from typing import Dict, List
 from shapely.geometry import Polygon, LineString, Point
-from hybrid_automaton.automaton import Automaton
-import numpy as np
+from hybrid_automaton import RuntimeContext
+from hybrid_automaton.definition import guard
 
-
-def heading_not_within_tolerance_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict,  clk: Automaton.Runtime.Clock) -> bool:
+@guard
+def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     """ 
     guard function for hybrid automaton which checks if a heading provided is 
     not within a heading tolerance
@@ -50,29 +50,17 @@ def heading_not_within_tolerance_guard(x: Automaton.Runtime.ContinousState, aux_
     Raises: 
         ... #TODO: Change cfg to cfg
     """
-    if not isinstance(x.get_continous_state(), np.ndarray) or x.get_continous_state().dtype != float or x.get_continous_state().shape != (5,):
+    if not ctx.continuous_state.latest().shape != (5,):
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
-    if not isinstance(aux_x, dict) or 'waypoints' not in aux_x:
-        raise ValueError('invalid aux_x for this guard: waypoints not found')
-
-    
-    x_state = x.get_continous_state()
+    x_state = ctx.continuous_state.latest()
     # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = aux_x['waypoints']
-    waypoints: Automaton.Runtime.AuxiliaryState = waypoints_aux.state
+    waypoints_aux = ctx.auxiliary_states['waypoints']
+    waypoints = waypoints_aux.latest()
 
     if waypoints is None or len(waypoints) <= 0:
-        raise ValueError('invalid waypoints in aux_x')
-    
-    if not isinstance(cfg, Dict):
-        raise ValueError('invalid cfg')
-    
-    # try: 
-    #     cfg['heading_tolerance']
-    # except Exception as e:
-    #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
-    
+        raise ValueError('invalid waypoints in aux_x') 
+
     xx, xy, yaw = x_state[0:3]            # current position + heading
     wx, wy = waypoints[0] # waypoint position
 
@@ -87,9 +75,10 @@ def heading_not_within_tolerance_guard(x: Automaton.Runtime.ContinousState, aux_
     error = math.atan2(math.sin(desired - yaw), math.cos(desired - yaw))
 
     # True only if heading error exceeds tolerance
-    return abs(error) > cfg["heading_tolerance"]
+    return abs(error) > ctx.configuration["heading_tolerance"]
 
-def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
+@guard
+def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     """ 
     Guard function for hybrid automaton which checks if a heading provided is 
     within a heading tolerance.
@@ -122,22 +111,22 @@ def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runti
     Raises:
         ...
     """
-    if not isinstance(x.get_continous_state(), np.ndarray) or x.get_continous_state().dtype != float or x.get_continous_state().shape != (5,):
+    if ctx.continuous_state.latest().shape != (5,):
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
-    if not isinstance(aux_x, dict) or 'waypoints' not in aux_x:
+    if 'waypoints' not in ctx.configuration:
         raise ValueError('invalid aux_x for this guard: waypoints not found')
 
     
-    x_state = x.get_continous_state()
+    x_state = ctx.continuous_state.latest()
     # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = aux_x['waypoints']
-    waypoints: Automaton.Runtime.AuxiliaryState = waypoints_aux.state
+    waypoints_aux = ctx.configuration['waypoints']
+    waypoints = waypoints_aux.latest()
 
     if waypoints is None or len(waypoints) <= 0:
         raise ValueError('invalid waypoints in aux_x')
     
-    if not isinstance(cfg, Dict):
+    if not isinstance(ctx.configuration, Dict):
         raise ValueError('invalid cfg')
     
     # try: 
@@ -159,9 +148,10 @@ def heading_within_tolerance_guard(x: np.array, aux_x: Dict[str, Automaton.Runti
     error = math.atan2(math.sin(desired - yaw), math.cos(desired - yaw))
 
     # True only if heading error exceeds tolerance
-    return abs(error) < cfg["heading_tolerance"]
+    return abs(error) < ctx.configuration["heading_tolerance"]
 
-def los_clear_to_waypoint_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool: 
+@guard
+def los_clear_to_waypoint_guard(ctx: RuntimeContext) -> bool: 
     """  
     
     Docs: 
@@ -182,10 +172,10 @@ def los_clear_to_waypoint_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.
             True if line of sight to waypoint is NOT clear representing guard trigger
     """
 
-    current_waypoint: List[float, float] = aux_x['waypoints'].state[0]
+    current_waypoint: List[float, float] = ctx.auxiliary_states['waypoints'].latest()[0]
 
-    los: LineString = LineString([x.get_continous_state()[0:2], current_waypoint])
-    unsafe_region: Polygon = Polygon(aux_x["unsafe_region"].state)
+    los: LineString = LineString([ctx.continuous_state.latest()[0:2], current_waypoint])
+    unsafe_region: Polygon = Polygon(ctx.auxiliary_states["unsafe_region"].latest())
 
     if los.intersects(unsafe_region): 
         intersection = los.intersection(unsafe_region)
@@ -197,14 +187,15 @@ def los_clear_to_waypoint_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.
             intersection = intersection.interpolate(0.5, normalized=True)
 
         intersection_distance = math.dist(
-            x.get_continous_state()[0:2], (intersection.x, intersection.y)
+            ctx.continuous_state.latest()[0:2], (intersection.x, intersection.y)
         )
-        if intersection_distance <= cfg['los_distance_threshold']: 
+        if intersection_distance <= ctx.configuration['los_distance_threshold']: 
             return True
 
     return False
 
-def unsafe_conditions_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool: 
+@guard
+def unsafe_conditions_guard(ctx: RuntimeContext) -> bool: 
     """  
     
     Docs: 
@@ -242,7 +233,8 @@ def unsafe_conditions_guard(x: np.array, aux_x: Dict[str, Automaton.Runtime.Auxi
 
     return agent_circle.intersects(unsafe_region)
 
-def virtual_waypoints_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
+@guard
+def virtual_waypoints_guard(ctx: RuntimeContext) -> bool:
     """
     validate is there are virtual waypoints in the waypoints list 
 
@@ -263,12 +255,13 @@ def virtual_waypoints_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str
             True if there are virtual waypoints present, representing guard trigger
     """
 
-    if aux_x is None or 'waypoints' not in aux_x:
+    if ctx.auxiliary_states is None or 'waypoints' not in ctx.auxiliary_states:
         raise ValueError('invalid aux_x') 
     
-    return len(aux_x['waypoints'].state) > 1
+    return len(ctx.auxiliary_states['waypoints'].latest()) > 1
 
-def waypoint_reached_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
+@guard
+def waypoint_reached_guard(ctx: RuntimeContext) -> bool:
     """
     automaton for 
 
@@ -287,10 +280,10 @@ def waypoint_reached_guard(x: Automaton.Runtime.ContinousState, aux_x: Dict[str,
         bool
             True if waypoint is reached within acceptance radius representing guard trigger
     """
-    pos = x.get_continous_state()[0:2]
-    waypoint = aux_x['waypoints'].state[0]
+    pos = ctx.continuous_state.latest()[0:2]
+    waypoint = ctx.auxiliary_states['waypoints'].latest()[0]
 
-    waypoints_reached_acceptance_radius = cfg.get("acceptance_radius", 20.0)
+    waypoints_reached_acceptance_radius = ctx.configuration.get("acceptance_radius", 20.0)
 
     return waypoints_reached_acceptance_radius >= math.dist(
         pos, waypoint

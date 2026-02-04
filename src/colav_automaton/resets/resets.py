@@ -1,14 +1,17 @@
-from hybrid_automaton import Automaton
-from typing import Tuple, List, Dict
 import numpy as np
-from shapely import LineString, Polygon, Point    
+from shapely import LineString, Polygon   
 
-def generate_new_virtual_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock):
+from hybrid_automaton.definition import reset  
+from hybrid_automaton import RuntimeContext
+
+
+@reset
+def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     """"""
-    xx, yy, heading=x.get_continous_state()[0:3]
+    xx, yy, heading=ctx.continuous_state.latest()[0:3]
 
     vertices = np.array(
-        aux_x['unsafe_region'].state
+        ctx.auxiliary_states['unsafe_region'].latest()
     )
     if vertices.size == 0:
         raise RuntimeError(
@@ -58,14 +61,14 @@ def generate_new_virtual_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtim
     # If forward vector is (dx, dy), right vector is (dy, -dx)
     right_perp = np.array([direction[1], -direction[0]])
 
-    adjusted_x = float(rightmost_x + cfg['longitudinal_offset_distance'] * direction[0] + cfg['lateral_offset_distance'] * right_perp[0])
-    adjusted_y = float(rightmost_y + cfg['longitudinal_offset_distance'] * direction[1] + cfg['lateral_offset_distance'] * right_perp[1])
+    adjusted_x = float(rightmost_x + ctx.configuration['longitudinal_offset_distance'] * direction[0] + ctx.configuration['lateral_offset_distance'] * right_perp[0])
+    adjusted_y = float(rightmost_y + ctx.configuration['longitudinal_offset_distance'] * direction[1] + ctx.configuration['lateral_offset_distance'] * right_perp[1])
     
-    aux_x['waypoints'].state.insert(0, np.array([adjusted_x, adjusted_y]))
-    return x, aux_x, u
+    ctx.configuration['waypoints'].state.insert(0, np.array([adjusted_x, adjusted_y])) # TODO: Need to read how to append an auxiliary context update.
+    return ctx
 
-
-def pop_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> Tuple[Dict]:
+@reset
+def pop_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     """ """ 
-    aux_x['waypoints'].state.pop(0)    
-    return x, aux_x, u
+    ctx.auxiliary_states['waypoints'].latest().pop()   
+    return ctx

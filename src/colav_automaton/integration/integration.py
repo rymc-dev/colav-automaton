@@ -1,11 +1,12 @@
-from finite_time_control import HeadingFTC
+# from finite_time_control import HeadingFTC # TODO: NEED TO UPDATE THIS FINITE TIME CONTROLLER TO ACTUALLY WORK
 from typing import Tuple
 from typing import Dict
 
 from hybrid_automaton import Automaton
+from hybrid_automaton import RuntimeContext
 import numpy as np
 
-def integrate_simple_vessel_kinematics(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> Tuple[float, float, float]:
+def integrate_simple_vessel_kinematics(ctx: RuntimeContext) -> Tuple[float, float, float]:
     """
     used for simulating the integration of continuous dynamics
     into a finite time controller
@@ -36,10 +37,11 @@ def integrate_simple_vessel_kinematics(x: np.array, aux_x: Dict[str, Automaton.R
     Outputs: 
         list (a vector of scalars in np.array format representing the x,y,theta state of automaton) 
     """
-    ctrl = HeadingFTC()
-    ctrl.update_x_state(x)
-    desired_waypoint = aux_x['waypoints'][0] # should get the first waypoint in the list
-    ctrl.update_desired_state(desired_waypoint)
-    desired_yaw_rate = ctrl.update(dt=dt, ctrl_saturation=True)
+    pass
+    # ctrl = HeadingFTC()
+    # ctrl.update_x_state(x)
+    # desired_waypoint = aux_x['waypoints'][0] # should get the first waypoint in the list
+    # ctrl.update_desired_state(desired_waypoint)
+    # desired_yaw_rate = ctrl.update(dt=dt, ctrl_saturation=True)
 
 
