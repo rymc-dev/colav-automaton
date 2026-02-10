@@ -1,9 +1,8 @@
-from typing import List, Dict
-import numpy as np
-from hybrid_automaton import Automaton
+from hybrid_automaton.definition import invariant
+from hybrid_automaton import RuntimeContext
 
-def is_goal_waypoint_invariant(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> bool:
-    if cfg["waypoints"] == 1: 
-        return True
-    return False
-    
+
+@invariant
+def is_goal_waypoint_invariant(ctx: RuntimeContext) -> bool:
+    """True when only the goal waypoint remains on the stack (no active V1s)."""
+    return len(ctx.configuration["waypoints"]) == 1

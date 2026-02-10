@@ -1,125 +1,51 @@
-from hybrid_automaton import Automaton
-from typing import Tuple, List, Dict
-import numpy as np
-from shapely import LineString, Polygon, Point    
-
-def generate_new_virtual_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock):
-    """ Unused """
-    xx, yy, heading=x.get_continous_state()[0:3]
-
-    vertices = np.array(
-        aux_x['unsafe_region'].state
-    )
-    if vertices.size == 0:
-        raise RuntimeError(
-            "unsafe set does not contain any vertices, Guard must have activated invalidaly"
-        ) 
-
-    vertices_reshaped = vertices.reshape(-1, 2)
-    polygon = Polygon(vertices_reshaped)
-    if not polygon.is_valid:
-        raise RuntimeError('Unsafe set polygon is invalid.')
-
-    visible_vertices = []
-
-    for vx, vy in vertices_reshaped:
-        ray = LineString([(xx, yy), (vx, vy)])
-        if polygon.exterior.crosses(ray):
-            continue
-        visible_vertices.append((vx, vy))
-
-    if not visible_vertices:
-        raise ValueError(
-            "No visible vertices from agent's position to unsafe set.")
-
-    visible_vertices_np = np.array(visible_vertices)
-    vx_arr = visible_vertices_np[:, 0]
-    vy_arr = visible_vertices_np[:, 1]
-
-    # Compute angle relative to agent heading
-    global_angles = np.arctan2(vy_arr - yy, vx_arr - xx)
-    relative_angles = global_angles - heading
+from hybrid_automaton.definition import reset
+from hybrid_automaton import RuntimeContext
+from colav_automaton.controllers import compute_v1, get_unsafe_set_vertices
 
 
-    # Right side = negative angles, pick minimum angle (most right)
-    idx_rightmost = int(np.argmin(relative_angles))
-    rightmost_x = vx_arr[idx_rightmost]
-    rightmost_y = vy_arr[idx_rightmost]
-
-    # Vector from agent to rightmost vertex
-    vec = np.array([rightmost_x - xx, rightmost_y - yy])
-    norm = np.linalg.norm(vec)
-    if norm == 0:
-        raise ValueError(
-            "Agent position coincides with the rightmost vertex; cannot compute offset direction.")
-    direction = vec / norm
-
-    # Compute right perpendicular vector to 'direction' (for right offset)
-    # If forward vector is (dx, dy), right vector is (dy, -dx)
-    right_perp = np.array([direction[1], -direction[0]])
-
-    adjusted_x = float(rightmost_x + cfg['longitudinal_offset_distance'] * direction[0] + cfg['lateral_offset_distance'] * right_perp[0])
-    adjusted_y = float(rightmost_y + cfg['longitudinal_offset_distance'] * direction[1] + cfg['lateral_offset_distance'] * right_perp[1])
-    
-    aux_x['waypoints'].state.insert(0, np.array([adjusted_x, adjusted_y]))
-    return x, aux_x, u
-
-
-def pop_waypoint(x: np.array, aux_x: Dict[str, Automaton.Runtime.AuxiliaryState], u: Dict[str, Automaton.Runtime.ControlInput], cfg: Dict, clk: Automaton.Runtime.Clock) -> Tuple[Dict]:
-    """ Unused """ 
-    aux_x['waypoints'].state.pop(0)    
-    return x, aux_x, u
-
-def reset_enter_avoidance(
-    x: Automaton.Runtime.ContinousState,
-    aux_x: Dict[str, Automaton.Runtime.AuxiliaryState],
-    u: Dict[str, Automaton.Runtime.ControlInput],
-    cfg: Dict,
-    clk: Automaton.Runtime.Clock
-):
+@reset
+def reset_enter_avoidance(ctx: RuntimeContext) -> RuntimeContext:
     """
     Reset when entering S2 (collision avoidance mode).
 
-    Clears any previous collision avoidance state to ensure fresh
-    computation of virtual waypoint V1.
-
-    Args:
-        x: Continuous state 
-        aux_x: Auxiliary states
-        u: Control inputs 
-        cfg: Configuration containing ca_controller
-        clk: Clock 
-
-    Returns:
-        Tuple[x, aux_x, u]: Unchanged states
+    Computes virtual waypoint V1 and pushes it onto the waypoints stack.
     """
-    if 'ca_controller' in cfg and cfg['ca_controller'] is not None:
-        cfg['ca_controller'].reset()
-    return x, aux_x, u
+    state = ctx.continuous_state.latest()
+    cfg = ctx.configuration
+
+    def vertex_provider(pos_x, pos_y, obstacles_list, Cs, psi):
+        return get_unsafe_set_vertices(
+            pos_x, pos_y, obstacles_list, Cs,
+            dsf=cfg['dsafe'], ship_psi=psi, ship_v=cfg['v']
+        )
+
+    v1 = compute_v1(
+        state[0], state[1], state[2],
+        cfg['obstacles'], cfg['Cs'],
+        vertex_provider, cfg.get('v1_buffer', 0.0)
+    )
+
+    if v1 is not None:
+        cfg['waypoints'].append(v1)
+
+    return ctx
 
 
-def reset_exit_avoidance(
-    x: Automaton.Runtime.ContinousState,
-    aux_x: Dict[str, Automaton.Runtime.AuxiliaryState],
-    u: Dict[str, Automaton.Runtime.ControlInput],
-    cfg: Dict,
-    clk: Automaton.Runtime.Clock
-):
+@reset
+def reset_reach_V1(ctx: RuntimeContext) -> RuntimeContext:
+    """
+    Reset when transitioning S2 -> S3 (V1 reached or behind).
+
+    Pops V1 from the waypoints stack.
+    """
+    if len(ctx.configuration.get('waypoints', [])) > 1:
+        ctx.configuration['waypoints'].pop()
+    return ctx
+
+
+@reset
+def reset_exit_avoidance(ctx: RuntimeContext) -> RuntimeContext:
     """
     Reset when exiting S3 back to S1 (resume waypoint reaching).
-
-    Clears collision avoidance state to prepare for normal waypoint navigation.
-
-    Args:
-        x: Continuous state 
-        aux_x: Auxiliary states 
-        u: Control inputs 
-        cfg: Configuration containing ca_controller
-        clk: Clock
-
-    Returns:
-        Tuple[x, aux_x, u]: Unchanged states
     """
-    if 'ca_controller' in cfg and cfg['ca_controller'] is not None:
-        cfg['ca_controller'].reset()
-    return x, aux_x, u
+    return ctx

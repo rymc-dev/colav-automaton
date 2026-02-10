@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "colav-automaton"
-dynamic = ["version"]
+version = "0.0.1"
 description = ''
 readme = "README.md"
 requires-python = ">=3.8"
@@ -25,16 +25,16 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  # hybrid-automaton
+  "shapely>=2.0",
+  "numpy>=1.20",
+  "scipy>=1.7",
+  "colav-unsafe-set",
 ]
 
 [project.urls]
 Documentation = "https://github.com/Ryan McKee/colav-automaton#readme"
 Issues = "https://github.com/Ryan McKee/colav-automaton/issues"
 Source = "https://github.com/Ryan McKee/colav-automaton"
-
-[tool.hatch.version]
-path = "src/colav_automaton/__about__.py"
 
 [tool.hatch.envs.types]
 extra-dependencies = [
