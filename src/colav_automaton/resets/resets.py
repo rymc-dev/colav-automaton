@@ -7,7 +7,21 @@ from hybrid_automaton import RuntimeContext
 
 @reset
 def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
-    """"""
+    """
+    utilizes the unsafe set vertices to generate a new virtual waypoint that 
+    is an offset from the rightmost visible vertex of the unsafe set, 
+    based on the agent's current position and heading. The new waypoint is
+    then added to the front of the waypoints list in the auxiliary context 
+    state for the automaton.
+    
+    Inputs: 
+        - ctx: hybrid_automaton.RuntimeContext consisting of internal
+            continuous state (e.g. position, heading) and auxiliary states 
+            (e.g. unsafe region vertices, waypoints list)
+            
+    Outputs: 
+        - ctx: updated RuntimeContext with new waypoint added to auxiliary state
+    """
     xx, yy, heading=ctx.continuous_state.latest()[0:3]
 
     vertices = np.array(
@@ -61,10 +75,10 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     # If forward vector is (dx, dy), right vector is (dy, -dx)
     right_perp = np.array([direction[1], -direction[0]])
 
-    adjusted_x = float(rightmost_x + ctx.configuration['longitudinal_offset_distance'] * direction[0] + ctx.configuration['lateral_offset_distance'] * right_perp[0])
-    adjusted_y = float(rightmost_y + ctx.configuration['longitudinal_offset_distance'] * direction[1] + ctx.configuration['lateral_offset_distance'] * right_perp[1])
+    adjusted_x = float(rightmost_x + ctx.configuration.get('longitudinal_offset_distance', 0) * direction[0] + ctx.configuration.get('lateral_offset_distance', 0) * right_perp[0])
+    adjusted_y = float(rightmost_y + ctx.configuration.get('longitudinal_offset_distance', 0) * direction[1] + ctx.configuration.get('lateral_offset_distance', 0) * right_perp[1])
     
-    ctx.configuration['waypoints'].state.insert(0, np.array([adjusted_x, adjusted_y])) # TODO: Need to read how to append an auxiliary context update.
+    ctx.auxiliary_states['waypoints'].add(np.array([adjusted_x, adjusted_y])) # TODO: Need to read how to append an auxiliary context update.
     return ctx
 
 @reset
