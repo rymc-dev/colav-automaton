@@ -3,7 +3,10 @@ from hybrid_automaton import RuntimeContext
 
 @invariant
 def is_goal_waypoint_invariant(ctx: RuntimeContext) -> bool:
-    if ctx.configuration["waypoints"] == 1: 
+    if len(ctx.auxiliary_states['waypoints'].aux_buffer) <= 0:
+        raise IndexError('no waypoints in auxiliary state!')
+    
+    if len(ctx.auxiliary_states["waypoints"].aux_buffer) == 1: 
         return True
     return False
     
