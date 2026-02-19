@@ -12,6 +12,7 @@ from shapely.geometry import Polygon, LineString, Point
 from hybrid_automaton import RuntimeContext
 from hybrid_automaton.definition import guard
 
+
 @guard
 def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     """ 

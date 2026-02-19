@@ -138,6 +138,8 @@ def main():
     ha: Automaton = ColavAutomaton()
     results = None
     
+    print (ha)
+    
     async def run():
         results: RunResult = await ha.activate(
             initial_continuous_state=None,
