@@ -64,7 +64,6 @@ def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, config, 
     npt.assert_allclose(called_arg, np.array(expected_vw_point), atol=1e-6)
     assert updated_ctx is ctx, "Expected the same context object to be returned after reset execution."
 
-
 @pytest.mark.parametrize(
     "waypoints, should_raise",
     [
