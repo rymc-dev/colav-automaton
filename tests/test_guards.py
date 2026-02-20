@@ -87,7 +87,8 @@ def waypoint_reached_guard(agent_position, waypoints, acceptance_radius):
     ctx.axuliiary_state['waypoints'].latest.return_value = waypoints
     
     guard_eval: bool = waypoint_reached_guard(ctx) 
-    
+   
+   
     
  
 if __name__ == '__main__': 
