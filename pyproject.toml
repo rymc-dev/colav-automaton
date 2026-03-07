@@ -25,7 +25,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "hybrid-automaton==0.0.6"
+  "hybrid-automaton==0.0.6",
+  "shapely", 
 ]
 
 [project.urls]

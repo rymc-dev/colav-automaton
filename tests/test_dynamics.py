@@ -18,8 +18,6 @@ _ContinuousState = _Runtime_Context.ContinuousState
 _AuxiliaryState = _Runtime_Context.AuxiliaryState
 
 import math
-import numpy as np
-import pytest
 
 
 @pytest.mark.parametrize(
