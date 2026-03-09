@@ -51,7 +51,7 @@ def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     Raises: 
         ... #TODO: Change cfg to cfg
     """
-    if not ctx.continuous_state.latest().shape != (5,):
+    if not len(ctx.continuous_state.latest()) != 5:
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
     x_state = ctx.continuous_state.latest()
@@ -112,7 +112,7 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     Raises:
         ...
     """
-    if ctx.continuous_state.latest().shape != (5,):
+    if len(ctx.continuous_state.latest()) != 5:
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
     if 'waypoints' not in ctx.configuration:
