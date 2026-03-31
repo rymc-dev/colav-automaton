@@ -104,7 +104,7 @@ def ColavAutomaton(
         name="e7",
         to_state=q1,
         guards=[virtual_waypoints_guard],
-        reset=pop_waypoint
+        reset=pop_virtual_waypoint
     )
     q4.add_transition(e7)
 
