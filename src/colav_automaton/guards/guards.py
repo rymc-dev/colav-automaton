@@ -51,7 +51,7 @@ def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     Raises: 
         ... #TODO: Change cfg to cfg
     """
-    if not len(ctx.continuous_state.latest()) != 5:
+    if len(ctx.continuous_state.latest()) != 5:
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
     x_state = ctx.continuous_state.latest()
@@ -115,13 +115,13 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     if len(ctx.continuous_state.latest()) != 5:
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
 
-    if 'waypoints' not in ctx.configuration:
+    if 'waypoints' not in ctx.auxiliary_states:
         raise ValueError('invalid aux_x for this guard: waypoints not found')
 
     
     x_state = ctx.continuous_state.latest()
     # Extract waypoints from the correct AuxiliaryState
-    waypoints_aux = ctx.configuration['waypoints']
+    waypoints_aux = ctx.auxiliary_states['waypoints']
     waypoints = waypoints_aux.latest()
 
     if waypoints is None or len(waypoints) <= 0:

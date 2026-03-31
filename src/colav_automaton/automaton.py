@@ -11,12 +11,14 @@ from hybrid_automaton import Automaton
 from hybrid_automaton.definition import State
 from hybrid_automaton.definition import Transition
 
+from hybrid_automaton import ContinuousState
+from hybrid_automaton import IntegrationFunction
+
 from guards import *
 from resets import *
 from invariants import *
 from dynamics import *
 from integration import *
-
 
 import numpy as np
 
@@ -36,23 +38,23 @@ def ColavAutomaton(
         name="Cruise",
         initial=True,
         flow=constant_heading_dynamics,
-        on_enter=lambda: print('cruise')
+        on_enter=lambda: print('cruise'),
     )
     q2 = State(
         name="Transition_to_LOS",
         flow = flow_los_heading,
-        on_enter=lambda: print('T2LOS')
+        on_enter=lambda: print('T2LOS'),
     )
     q3 = State(
         name="Fallback",
         flow=constant_heading_dynamics,
-        on_enter=lambda: print('fallback')
+        on_enter=lambda: print('fallback'),
     )
     q4 = State( 
         name="Waypoint_Reached",
         invariants=[is_goal_waypoint_invariant],
         flow=constant_heading_dynamics,
-        on_enter=lambda: print('waypoint_reached')
+        on_enter=lambda: print('waypoint_reached'),
     )
 
     """transitions""" 
@@ -144,11 +146,16 @@ def main():
     
     async def run():
         results: RunResult = await ha.activate(
-            initial_continuous_state=np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+            initial_continuous_state=ContinuousState(
+                name="agent", 
+                x0=np.array([0.0, 0.0, 0.0, 0.0, 0.0]), 
+                x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
+            ),
             initial_auxiliary_states={
                 "waypoints": [np.array([10.0, 10.0]), np.array([25.0, 25.0])],
                 "unsafe_region": []
             },
+            timeout_sec=1000.0,
             delta_time=0.1,
             enable_real_time_mode=False,
             enable_self_integration=True,
