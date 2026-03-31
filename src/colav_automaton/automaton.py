@@ -23,11 +23,11 @@ from integration import *
 import numpy as np
 
 def ColavAutomaton(
-    heading_tolerance: float = 0.2, 
+    heading_tolerance: float = 0.2,
     k_theta: float = 1.0, 
     k_v: float = 1.0, 
     constant_velocity: float = 2.0, 
-    acceptance_radius: float = 0.2, 
+    acceptance_radius: float = 10, 
     los_distance_threshold: float = 30.0, 
     longitudinal_offset_distance: float = 10.0, 
     lateral_offset_distance: float = 10.0
@@ -55,6 +55,7 @@ def ColavAutomaton(
         invariants=[is_goal_waypoint_invariant],
         flow=constant_heading_dynamics,
         on_enter=lambda: print('waypoint_reached'),
+        final=True
     )
 
     """transitions""" 
@@ -123,7 +124,8 @@ def ColavAutomaton(
             q4
         ],
         configuration={
-            'heading_tolerance': heading_tolerance,
+            'heading_tolerance_on': heading_tolerance,
+            'heading_tolerance_off': heading_tolerance * 0.5, # adds a deadband to stop chattering
             'k_theta': k_theta,
             'k_v': k_v,
             'constant_velocity': constant_velocity,
@@ -152,15 +154,19 @@ def main():
                 x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
             ),
             initial_auxiliary_states={
-                "waypoints": [np.array([10.0, 10.0]), np.array([25.0, 25.0])],
+                "waypoints": [np.array([40.0, 40.0]), np.array([100.0, 40.0])],
                 "unsafe_region": []
             },
-            timeout_sec=1000.0,
+            timeout_sec=100.0,
             delta_time=0.1,
             enable_real_time_mode=False,
+            continuous_state_sampler_enabled=True,
+            continuous_state_sampler_rate=10,
             enable_self_integration=True,
-            should_write_logs=False,
-            output_dir="./log_hybrid_automaton"
+            # auxiliary_states_sampler_enabled=True,
+            # auxiliary_states_sampler_rate=10.0,
+            should_write_logs=True,
+            output_dir="./colav-automaton-logs"
         )
         print (results)
     asyncio.run(run())

@@ -76,7 +76,7 @@ def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     error = math.atan2(math.sin(desired - yaw), math.cos(desired - yaw))
 
     # True only if heading error exceeds tolerance
-    return abs(error) > ctx.configuration["heading_tolerance"]
+    return abs(error) > ctx.configuration["heading_tolerance_on"]
 
 @guard
 def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
@@ -149,7 +149,7 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     error = math.atan2(math.sin(desired - yaw), math.cos(desired - yaw))
 
     # True only if heading error exceeds tolerance
-    return abs(error) < ctx.configuration["heading_tolerance"]
+    return abs(error) < ctx.configuration["heading_tolerance_off"]
 
 @guard
 def los_clear_to_waypoint_guard(ctx: RuntimeContext) -> bool: 
@@ -216,21 +216,11 @@ def unsafe_conditions_guard(ctx: RuntimeContext) -> bool:
         bool 
             True if unsafe conditions are detected representing guard trigger
     """
-    if not isinstance(x, List) or len(x) < 2:
-        raise ValueError('invalid x')
-    if [float != type(x_val) for x_val in x]:
-        raise ValueError('invalid x value types')
-    if not isinstance(cfg, Dict):
-        raise ValueError('invalid cfg')
-    if 'agent_safety_radius' not in cfg:
-        raise ValueError('invalid cfg agent_safety_radius')
-    if 'unsafe_region' not in cfg:
-        raise ValueError('invalid cfg unsafe_region')
 
-    agent_safety_radius = cfg['agent_safety_radius']
-    agent_circle = Point(x[0:1]).buffer(agent_safety_radius)
+    agent_safety_radius = ctx.configuration.get('agent_safety_radius', 100.0)
+    agent_circle = Point(ctx.continuous_state.latest()[0:2]).buffer(agent_safety_radius)
 
-    unsafe_region: Polygon = Polygon(cfg['unsafe_region'])
+    unsafe_region: Polygon = Polygon(ctx.auxiliary_states['unsafe_region'].latest())
 
     return agent_circle.intersects(unsafe_region)
 
@@ -285,7 +275,8 @@ def waypoint_reached_guard(ctx: RuntimeContext) -> bool:
     waypoint = ctx.auxiliary_states['waypoints'].latest()[0]
 
     waypoints_reached_acceptance_radius = ctx.configuration.get("acceptance_radius", 20.0)
-
-    return waypoints_reached_acceptance_radius >= math.dist(
+    eval = waypoints_reached_acceptance_radius >= math.dist(
         pos, waypoint
     )
+
+    return eval

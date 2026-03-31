@@ -84,7 +84,7 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
 @reset
 def pop_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     """ """ 
-    if len(ctx.auxiliary_states['waypoints'].aux_buffer) <= 1:
+    if len(ctx.auxiliary_states['waypoints'].latest()) <= 1:
         raise IndexError("Cannot pop last waypoint")
     ctx.auxiliary_states['waypoints'].pop()   
     return ctx
