@@ -18,6 +18,8 @@ from dynamics import *
 from integration import *
 
 
+import numpy as np
+
 def ColavAutomaton(
     heading_tolerance: float = 0.2, 
     k_theta: float = 1.0, 
@@ -142,10 +144,18 @@ def main():
     
     async def run():
         results: RunResult = await ha.activate(
-            initial_continuous_state=None,
-            initial_auxiliary_states=None,
+            initial_continuous_state=np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+            initial_auxiliary_states={
+                "waypoints": [np.array([10.0, 10.0]), np.array([25.0, 25.0])],
+                "unsafe_region": []
+            },
+            delta_time=0.1,
+            enable_real_time_mode=False,
+            enable_self_integration=True,
+            should_write_logs=False,
+            output_dir="./log_hybrid_automaton"
         )
-        
+        print (results)
     asyncio.run(run())
 
 if __name__ == '__main__': 
