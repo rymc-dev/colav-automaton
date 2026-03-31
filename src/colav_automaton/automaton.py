@@ -154,10 +154,10 @@ def main():
                 x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
             ),
             initial_auxiliary_states={
-                "waypoints": [np.array([40.0, 40.0]), np.array([100.0, 40.0])],
+                "waypoints": [np.array([40.0, 40.0]), np.array([100.0, 40.0]), np.array([-200, -200])],
                 "unsafe_region": []
             },
-            timeout_sec=100.0,
+            # timeout_sec=200.0,
             delta_time=0.1,
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
