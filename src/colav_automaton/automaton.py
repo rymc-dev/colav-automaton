@@ -27,10 +27,11 @@ def ColavAutomaton(
     k_theta: float = 1.0, 
     k_v: float = 1.0, 
     constant_velocity: float = 2.0, 
-    acceptance_radius: float = 10, 
-    los_distance_threshold: float = 30.0, 
-    longitudinal_offset_distance: float = 10.0, 
-    lateral_offset_distance: float = 10.0
+    safety_radius: float = 30.0,
+    acceptance_radius: float = 5, 
+    los_distance_threshold: float = 60.0, 
+    longitudinal_offset_distance: float = 50.0, 
+    lateral_offset_distance: float = 50.0
 ) -> Automaton:
     """state definitions""" 
     
@@ -48,11 +49,12 @@ def ColavAutomaton(
     q3 = State(
         name="Fallback",
         flow=constant_heading_dynamics,
+        invariants=[failing_invariant],
         on_enter=lambda: print('fallback'),
     )
     q4 = State( 
         name="Waypoint_Reached",
-        invariants=[is_goal_waypoint_invariant],
+        invariants=[failing_invariant],
         flow=constant_heading_dynamics,
         on_enter=lambda: print('waypoint_reached'),
         final=True
@@ -74,17 +76,17 @@ def ColavAutomaton(
         reset=generate_new_virtual_waypoint,
         priority=0
     )
-    e3 = Transition(
-        name="e3",
-        to_state=q3,
-        guards=[unsafe_conditions_guard]
-    )
+    # e3 = Transition(
+    #     name="e3",
+    #     to_state=q3,
+    #     guards=[unsafe_conditions_guard]
+    # )
     e4 = Transition(
         name="e4",
         to_state=q4,
         guards=[waypoint_reached_guard]
     )
-    q1.add_transitions([e1, e2, e3, e4])
+    q1.add_transitions([e1, e2, e4]) # e3
 
     # NOTE: transitions from Turn to LOS (q2)
     e5 = Transition(
@@ -128,6 +130,7 @@ def ColavAutomaton(
             'heading_tolerance_off': heading_tolerance * 0.5, # adds a deadband to stop chattering
             'k_theta': k_theta,
             'k_v': k_v,
+            'agent_safety_radius': safety_radius,
             'constant_velocity': constant_velocity,
             'acceptance_radius': acceptance_radius,
             'los_distance_threshold': los_distance_threshold,
@@ -150,14 +153,18 @@ def main():
         results: RunResult = await ha.activate(
             initial_continuous_state=ContinuousState(
                 name="agent", 
-                x0=np.array([0.0, 0.0, 0.0, 0.0, 0.0]), 
+                x0=np.array([-100.0, -100.0, 0.0, 0.0, 0.0]), 
                 x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
             ),
             initial_auxiliary_states={
-                "waypoints": [np.array([40.0, 40.0]), np.array([100.0, 40.0]), np.array([-200, -200])],
-                "unsafe_region": []
+                "waypoints": [120.0, 40.0],
+                "unsafe_region": [
+                    np.array([50.0, 10.0]),
+                    np.array([100.0, 10.0]),
+                    np.array([100.0, 70.0]),
+                    np.array([50.0, 70.0]),
+                ]
             },
-            # timeout_sec=200.0,
             delta_time=0.1,
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,

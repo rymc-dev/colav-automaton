@@ -42,8 +42,7 @@ def flow_los_heading(
     px, py, theta, v, yaw_rate = ctx.continuous_state.latest()
 
     # Waypoint
-    waypoints = ctx.auxiliary_states['waypoints'].latest()
-    waypoint = waypoints[0]
+    waypoint = ctx.auxiliary_states['waypoints'].latest()
     x_wp = waypoint[0]
     y_wp = waypoint[1]
     # LOS desired heading

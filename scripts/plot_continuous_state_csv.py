@@ -2,6 +2,7 @@ import csv
 import ast
 import matplotlib.pyplot as plt
 
+
 def plot_xy_from_csv(file_path: str):
     timestamps = []
     x_vals = []
@@ -25,11 +26,38 @@ def plot_xy_from_csv(file_path: str):
 
     # ---- Plot trajectory (x vs y) ----
     plt.figure()
-    plt.plot(x_vals, y_vals)
+    plt.plot(x_vals, y_vals, label="trajectory")
+
+    # 🎯 Waypoint
+    waypoint = (120.0, 40.0)
+    plt.scatter(*waypoint, marker='x', s=100, label="waypoint")
+    plt.text(waypoint[0], waypoint[1], "  WP", verticalalignment='bottom')
+
+    # 🟥 Unsafe region (polygon)
+    unsafe_region = [
+        [50.0, 10.0],
+        [100.0, 10.0],
+        [100.0, 70.0],
+        [50.0, 60.0],
+    ]
+
+    # Close the polygon loop
+    unsafe_x = [p[0] for p in unsafe_region] + [unsafe_region[0][0]]
+    unsafe_y = [p[1] for p in unsafe_region] + [unsafe_region[0][1]]
+
+    plt.plot(unsafe_x, unsafe_y, linestyle='--', label="unsafe boundary")
+    plt.fill(unsafe_x, unsafe_y, alpha=0.2)
+
     plt.xlabel("x")
     plt.ylabel("y")
     plt.title("Trajectory (x vs y)")
+    plt.legend()
     plt.grid()
+
+    # 🧭 Fix axis scaling + zoom into region of interest
+    plt.axis("equal")
+    plt.xlim(-50, 200)
+    plt.ylim(-50, 150)
 
     # ---- Plot x and y over time ----
     plt.figure()
@@ -45,5 +73,5 @@ def plot_xy_from_csv(file_path: str):
 
 
 if __name__ == "__main__":
-    file_path = "/home/ryan/colav-automaton/colav-automaton-logs/continuous_state.csv"  # 👈 change this
+    file_path = "/home/ryan/colav-automaton/colav-automaton-logs/continuous_state.csv"
     plot_xy_from_csv(file_path)

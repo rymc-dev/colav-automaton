@@ -9,4 +9,8 @@ def is_goal_waypoint_invariant(ctx: RuntimeContext) -> bool:
     if len(ctx.auxiliary_states["waypoints"].latest()) > 1: 
         return True
     return False
-    
+   
+   
+@invariant
+def failing_invariant(ctx: RuntimeContext) -> bool:
+    return False 

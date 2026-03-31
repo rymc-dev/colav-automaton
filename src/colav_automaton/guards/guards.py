@@ -57,13 +57,13 @@ def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     x_state = ctx.continuous_state.latest()
     # Extract waypoints from the correct AuxiliaryState
     waypoints_aux = ctx.auxiliary_states['waypoints']
-    waypoints = waypoints_aux.latest()
+    waypoint = waypoints_aux.latest()
 
-    if waypoints is None or len(waypoints) <= 0:
+    if waypoint is None:
         raise ValueError('invalid waypoints in aux_x') 
 
     xx, xy, yaw = x_state[0:3]            # current position + heading
-    wx, wy = waypoints[0] # waypoint position
+    wx, wy = waypoint # waypoint position
 
     # If exactly at the waypoint → no heading mismatch
     if xx == wx and xy == wy:
@@ -122,9 +122,9 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     x_state = ctx.continuous_state.latest()
     # Extract waypoints from the correct AuxiliaryState
     waypoints_aux = ctx.auxiliary_states['waypoints']
-    waypoints = waypoints_aux.latest()
+    waypoint= waypoints_aux.latest()
 
-    if waypoints is None or len(waypoints) <= 0:
+    if waypoint is None:
         raise ValueError('invalid waypoints in aux_x')
     
     if not isinstance(ctx.configuration, Dict):
@@ -136,7 +136,7 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
     
     xx, xy, yaw = x_state[0:3]            # current position + heading
-    wx, wy = waypoints[0] # waypoint position
+    wx, wy = waypoint # waypoint position
 
     # If exactly at the waypoint → no heading mismatch
     if xx == wx and xy == wy:
@@ -173,7 +173,7 @@ def los_clear_to_waypoint_guard(ctx: RuntimeContext) -> bool:
             True if line of sight to waypoint is NOT clear representing guard trigger
     """
 
-    current_waypoint: List[float, float] = ctx.auxiliary_states['waypoints'].latest()[0]
+    current_waypoint: List[float, float] = ctx.auxiliary_states['waypoints'].latest()
 
     los: LineString = LineString([ctx.continuous_state.latest()[0:2], current_waypoint])
     unsafe_region: Polygon = Polygon(ctx.auxiliary_states["unsafe_region"].latest())
@@ -190,7 +190,7 @@ def los_clear_to_waypoint_guard(ctx: RuntimeContext) -> bool:
         intersection_distance = math.dist(
             ctx.continuous_state.latest()[0:2], (intersection.x, intersection.y)
         )
-        if intersection_distance <= ctx.configuration['los_distance_threshold']: 
+        if intersection_distance <= ctx.configuration.get('los_distance_threshold', 50.0): 
             return True
 
     return False
@@ -222,8 +222,9 @@ def unsafe_conditions_guard(ctx: RuntimeContext) -> bool:
 
     unsafe_region: Polygon = Polygon(ctx.auxiliary_states['unsafe_region'].latest())
 
-    return agent_circle.intersects(unsafe_region)
-
+    eval = agent_circle.intersects(unsafe_region)
+    return eval
+    
 @guard
 def virtual_waypoints_guard(ctx: RuntimeContext) -> bool:
     """
@@ -249,7 +250,7 @@ def virtual_waypoints_guard(ctx: RuntimeContext) -> bool:
     if ctx.auxiliary_states is None or 'waypoints' not in ctx.auxiliary_states:
         raise ValueError('invalid aux_x') 
     
-    return len(ctx.auxiliary_states['waypoints'].latest()) > 1
+    return len(ctx.auxiliary_states['waypoints'].aux_buffer) > 1
 
 @guard
 def waypoint_reached_guard(ctx: RuntimeContext) -> bool:
@@ -272,7 +273,7 @@ def waypoint_reached_guard(ctx: RuntimeContext) -> bool:
             True if waypoint is reached within acceptance radius representing guard trigger
     """
     pos = ctx.continuous_state.latest()[0:2]
-    waypoint = ctx.auxiliary_states['waypoints'].latest()[0]
+    waypoint = ctx.auxiliary_states['waypoints'].latest()
 
     waypoints_reached_acceptance_radius = ctx.configuration.get("acceptance_radius", 20.0)
     eval = waypoints_reached_acceptance_radius >= math.dist(

@@ -75,16 +75,20 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     # If forward vector is (dx, dy), right vector is (dy, -dx)
     right_perp = np.array([direction[1], -direction[0]])
 
-    adjusted_x = float(rightmost_x + ctx.configuration.get('longitudinal_offset_distance', 0) * direction[0] + ctx.configuration.get('lateral_offset_distance', 0) * right_perp[0])
-    adjusted_y = float(rightmost_y + ctx.configuration.get('longitudinal_offset_distance', 0) * direction[1] + ctx.configuration.get('lateral_offset_distance', 0) * right_perp[1])
-    
-    ctx.auxiliary_states['waypoints'].add(np.array([adjusted_x, adjusted_y])) # TODO: Need to read how to append an auxiliary context update.
+    goal = np.array(ctx.auxiliary_states['waypoints'].latest())  # (120, 40)
+    agent = np.array([xx, yy])
+    forward = (goal - agent) / np.linalg.norm(goal - agent)     # agent→goal unit vector
+    right_perp = np.array([forward[1], -forward[0]])            # perpendicular to that
+
+    adjusted_x = float(rightmost_x + right_perp[0] * ctx.configuration.get('lateral_offset_distance', 0))
+    adjusted_y = float(rightmost_y + right_perp[1] * ctx.configuration.get('lateral_offset_distance', 0))
+    ctx.auxiliary_states['waypoints'].add([adjusted_x, adjusted_y]) # TODO: Need to read how to append an auxiliary context update.
     return ctx
 
 @reset
 def pop_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     """ """ 
-    if len(ctx.auxiliary_states['waypoints'].latest()) <= 1:
+    if len(ctx.auxiliary_states['waypoints'].aux_buffer) <= 1:
         raise IndexError("Cannot pop last waypoint")
     ctx.auxiliary_states['waypoints'].pop()   
     return ctx
