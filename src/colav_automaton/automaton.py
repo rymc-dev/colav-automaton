@@ -141,7 +141,11 @@ def ColavAutomaton(
 
     return ha
 
-def main():
+def main(
+    initial_state, 
+    unsafe_region,
+    waypoint
+):
     from hybrid_automaton import RunResult 
     import asyncio 
     ha: Automaton = ColavAutomaton()
@@ -153,22 +157,17 @@ def main():
         results: RunResult = await ha.activate(
             initial_continuous_state=ContinuousState(
                 name="agent", 
-                x0=np.array([-100.0, -100.0, 0.0, 0.0, 0.0]), 
+                x0=np.array(initial_state), 
                 x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
             ),
             initial_auxiliary_states={
-                "waypoints": [120.0, 40.0],
-                "unsafe_region": [
-                    np.array([50.0, 10.0]),
-                    np.array([100.0, 10.0]),
-                    np.array([100.0, 70.0]),
-                    np.array([50.0, 70.0]),
-                ]
+                "waypoints": waypoint,
+                "unsafe_region": unsafe_region
             },
             delta_time=0.1,
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
-            continuous_state_sampler_rate=10,
+            continuous_state_sampler_rate=100,
             enable_self_integration=True,
             # auxiliary_states_sampler_enabled=True,
             # auxiliary_states_sampler_rate=10.0,
@@ -178,5 +177,41 @@ def main():
         print (results)
     asyncio.run(run())
 
+# if __name__ == '__main__': 
+    
+#     main(
+#         initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
+#         unsafe_region=[
+#             np.array([30.0, 0.0]),
+#             np.array([70.0, 0.0]),
+#             np.array([70.0, 40.0]),
+#             np.array([30.0, 40.0]),
+#         ],
+#         waypoint=[120, 80]
+#     )
+
+# if __name__ == '__main__': 
+    
+#     main(
+#         initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
+#         unsafe_region=[
+#             np.array([60.0, 60.0]),
+#             np.array([90.0, 60.0]),
+#             np.array([90.0, 90.0]),
+#             np.array([60.0, 90.0]),
+#         ],
+#         waypoint=[150, 150]
+#     )
+
 if __name__ == '__main__': 
-    main()
+    
+    main(
+        initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
+        unsafe_region=[
+            np.array([40.0, 20.0]),
+            np.array([80.0, 20.0]),
+            np.array([80.0, 60.0]),
+            np.array([40.0, 60.0]),
+        ],
+        waypoint=[180, 140]
+    )

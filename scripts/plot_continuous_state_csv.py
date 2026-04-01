@@ -1,7 +1,7 @@
 import csv
 import ast
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 def plot_xy_from_csv(file_path: str):
     timestamps = []
@@ -29,16 +29,16 @@ def plot_xy_from_csv(file_path: str):
     plt.plot(x_vals, y_vals, label="trajectory")
 
     # 🎯 Waypoint
-    waypoint = (120.0, 40.0)
+    waypoint = [150, 150]
     plt.scatter(*waypoint, marker='x', s=100, label="waypoint")
     plt.text(waypoint[0], waypoint[1], "  WP", verticalalignment='bottom')
 
     # 🟥 Unsafe region (polygon)
     unsafe_region = [
-        [50.0, 10.0],
-        [100.0, 10.0],
-        [100.0, 70.0],
-        [50.0, 60.0],
+        np.array([60.0, 60.0]),
+        np.array([90.0, 60.0]),
+        np.array([90.0, 90.0]),
+        np.array([60.0, 90.0]),
     ]
 
     # Close the polygon loop
