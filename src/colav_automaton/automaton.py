@@ -12,6 +12,9 @@ from hybrid_automaton.definition import State
 from hybrid_automaton.definition import Transition
 
 from hybrid_automaton import ContinuousState
+from hybrid_automaton import AuxiliaryState 
+from hybrid_automaton import ControlState
+
 from hybrid_automaton import IntegrationFunction
 
 from guards import *
@@ -21,6 +24,7 @@ from dynamics import *
 from integration import *
 
 import numpy as np
+
 
 def ColavAutomaton(
     heading_tolerance: float = 0.2,
@@ -156,21 +160,21 @@ def main(
     async def run():
         results: RunResult = await ha.activate(
             initial_continuous_state=ContinuousState(
-                name="agent", 
+                name="agent_state", 
                 x0=np.array(initial_state), 
                 x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
             ),
-            initial_auxiliary_states={
-                "waypoints": waypoint,
-                "unsafe_region": unsafe_region
-            },
+            initial_auxiliary_states=[
+                AuxiliaryState(name="waypoints", aux0=waypoint, aux_buffer_len=10),
+                AuxiliaryState(name="unsafe_region", aux0=unsafe_region, aux_buffer_len=10, expected_update_hz=10)
+            ],
             delta_time=0.1,
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
             continuous_state_sampler_rate=100,
             enable_self_integration=True,
-            # auxiliary_states_sampler_enabled=True,
-            # auxiliary_states_sampler_rate=10.0,
+            auxiliary_states_sampler_enabled=True,
+            auxiliary_states_sampler_rate=10,
             should_write_logs=True,
             output_dir="./colav-automaton-logs"
         )
