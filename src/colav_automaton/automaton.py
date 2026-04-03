@@ -15,6 +15,8 @@ from hybrid_automaton import ContinuousState
 from hybrid_automaton import AuxiliaryState 
 from hybrid_automaton import ControlState
 
+from hybrid_automaton._runtime import _Runtime
+
 from hybrid_automaton import IntegrationFunction
 
 from guards import *
@@ -212,10 +214,10 @@ if __name__ == '__main__':
     main(
         initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
         unsafe_region=[
-            np.array([40.0, 20.0]),
-            np.array([80.0, 20.0]),
-            np.array([80.0, 60.0]),
-            np.array([40.0, 60.0]),
+            [40.0, 20.0],
+            [80.0, 20.0],
+            [80.0, 60.0],
+            [40.0, 60.0],
         ],
         waypoint=[180, 140]
     )
