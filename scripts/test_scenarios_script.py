@@ -12,6 +12,7 @@ from hybrid_automaton import ContinuousState
 from hybrid_automaton import AuxiliaryState
 from hybrid_automaton import RunResult
 
+
 scenarios = {
     "t1": {
         "hyperparameters": {
