@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SCENARIO: Head-On Encounter
+  ────────────────────────────────────────────────────────────────
+  Agent  : starts at (0, 0), heading EAST (theta=0.0)
+           goal at (500, 0) — straight ahead
+  Obs-1  : starts at (300, 0), heading WEST (theta=π ≈ 3.14159)
+           velocity=5 m/s → direct collision course
+
+  Expected behaviour: automaton detects head-on COLREGS situation,
+  alters course to starboard to pass port-to-port, then resumes LOS.
+  ────────────────────────────────────────────────────────────────
+-->
+<commonOcean timeStepSize="0.1" commonOceanVersion="2020a">
+
+    <location>
+        <geoNameId>5799783</geoNameId>
+        <gpsLatitude>47.650</gpsLatitude>
+        <gpsLongitude>-124.300</gpsLongitude>
+        <benchmark>false</benchmark>
+    </location>
+
+    <scenarioTags>
+        <head_on/>
+        <give_way/>
+    </scenarioTags>
+
+    <!-- ── Obstacle 1: Approaching head-on ── -->
+    <dynamicObstacle>
+        <type>SHIP</type>
+        <shape>
+            <rectangle>
+                <length>60.0</length>
+                <width>12.0</width>
+            </rectangle>
+        </shape>
+        <initialState>
+            <position>
+                <point>
+                    <x>300.0</x>
+                    <y>0.0</y>
+                </point>
+            </position>
+            <orientation>
+                <exact>3.14159265</exact>   <!-- heading WEST -->
+            </orientation>
+            <velocity>
+                <exact>5.0</exact>
+            </velocity>
+            <yawRate>
+                <exact>0.0</exact>
+            </yawRate>
+        </initialState>
+    </dynamicObstacle>
+
+    <planningProblem>
+        <initialState>
+            <position>
+                <point>
+                    <x>0.0</x>
+                    <y>0.0</y>
+                </point>
+            </position>
+            <orientation>
+                <exact>0.0</exact>           <!-- heading EAST -->
+            </orientation>
+            <velocity>
+                <exact>2.0</exact>
+            </velocity>
+        </initialState>
+        <goalState>
+            <position>
+                <rectangle>
+                    <center>
+                        <x>500.0</x>
+                        <y>0.0</y>
+                    </center>
+                    <length>20.0</length>
+                    <width>20.0</width>
+                </rectangle>
+            </position>
+        </goalState>
+    </planningProblem>
+
+</commonOcean>

@@ -7,8 +7,8 @@ from matplotlib.collections import PatchCollection
 import numpy as np
 from typing import Tuple, List
 
-continuous_state_file_path = "/home/ryan/colav-automaton/colav-automaton-logs/continuous_state.csv"
-aux_file_path = "/home/ryan/colav-automaton/colav-automaton-logs/auxiliary_state.csv"
+continuous_state_file_path = "/home/ryan/colav-automaton-logs/continuous_state.csv"
+aux_file_path = "/home/ryan/colav-automaton-logs/auxiliary_state.csv"
 
 
 def deserialize_continuous_state(file_path: str) -> Tuple[List, Tuple[List, List]]:
@@ -35,13 +35,9 @@ def deserialize_continuous_state(file_path: str) -> Tuple[List, Tuple[List, List
     return timestamps, (x_vals, y_vals)
 
 
+import re
+
 def deserialize_auxiliary_states(file_path: str) -> Tuple[List, List]:
-    """
-    Deserializes an auxiliary states log file.
-    Returns:
-        timestamps: list of floats
-        auxiliary_states: list of dicts with 'waypoints' and 'unsafe_region' keys
-    """
     timestamps: List = []
     auxiliary_states: List = []
 
@@ -51,8 +47,13 @@ def deserialize_auxiliary_states(file_path: str) -> Tuple[List, List]:
         for row in reader:
             t_str, aux_str = row
             t = float(t_str)
-            # Strip trailing comma before closing brace (makes ast.literal_eval happy)
+            
+            # Strip trailing comma/brace artifact
             aux_str_clean = aux_str.strip().rstrip(",}").rstrip() + "}"
+            
+            # Remove unserializable XML element reprs like <Element 'point' at 0x...>
+            aux_str_clean = re.sub(r"<Element '[^']+' at 0x[0-9a-fA-F]+>", "None", aux_str_clean)
+            
             aux = ast.literal_eval(aux_str_clean)
             timestamps.append(t)
             auxiliary_states.append(aux)

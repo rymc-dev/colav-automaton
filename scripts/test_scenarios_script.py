@@ -36,8 +36,8 @@ off the us, based on real AIS data scenarios.
 import os
 import xml.etree.ElementTree as ET
 
-scenario_dir = "/home/ryan/commonocean-scenarios-main-scenarios-MarineCadastre_01_19-UpperWestCoast/commonocean-scenarios-main-scenarios-MarineCadastre_01_19-UpperWestCoast/scenarios/MarineCadastre_01_19/UpperWestCoast"
-scenario_name = "USA_UWC-1_20190112_T-16.xml"
+scenario_dir = "/home/ryan/colav-automaton/scenarios"
+scenario_name = "USA_TEST_HeadOn.xml"
 
 tree = ET.parse(os.path.join(scenario_dir, scenario_name))
 root = tree.getroot()
@@ -187,11 +187,11 @@ def obstacle_state_and_unsafe_set_provider(ctx: RuntimeContext) -> Dict:
         obstacle['obstacle_initial_state_orientation'] = theta
         
         
-    ctx.auxiliary_states['unsafe_region'] = create_unsafe_set(
+    ctx.auxiliary_states['unsafe_region'].add(create_unsafe_set(
         agent=x,
         dynamic_obstacles=dynamic_obstacles,
         dsf=DSF 
-    )
+    ))
     return ctx.auxiliary_states 
 
 async def run_automaton():
