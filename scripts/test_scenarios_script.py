@@ -4,6 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", 'src'))
 
 import asyncio
+import math
 
 from colav_automaton import ColavAutomaton
 from hybrid_automaton import RunResult
@@ -11,6 +12,8 @@ from hybrid_automaton import Automaton
 from hybrid_automaton import ContinuousState
 from hybrid_automaton import AuxiliaryState
 from hybrid_automaton import RunResult
+
+import numpy as np
 
 from hybrid_automaton import RuntimeContext
 
@@ -118,18 +121,77 @@ def obstacle_state_and_unsafe_set_provider(ctx: RuntimeContext) -> Dict:
     x = ctx.continuous_state.latest()
     # 2. dynamic obstacles are an external data source while 
     #    unsafe set is passed in so need to pass auxiliary state in manually 
-    obstacles_state = ctx.auxiliary_states.get('obstacles_state', {})
+    obstacles_state = ctx.auxiliary_states.get('obstacles', {}).latest()
     
     # conver to unsafe set objects
-    x = Agent(position=(x[0], x[1], x[2]), orientation=x[3], velocity=x[4], yaw_rate=x[5], safety_radius=20.0)
-    # need to iterate dynamic obstacles here and conver then 
+    yaw = x[2]
+
+    qx = 0.0
+    qy = 0.0
+    qz = math.sin(yaw / 2.0)
+    qw = math.cos(yaw / 2.0)
+
+    x = Agent(
+        position=(x[0], x[1], 0.0),
+        orientation=(qx, qy, qz, qw),
+        velocity=x[3],
+        yaw_rate=x[4],
+        safety_radius=20.0
+    )
+    
     dynamic_obstacles = []
+    for obstacle in obstacles_state: 
+        type = obstacle['type']
+        position = obstacle['obstacle_initial_position']
+        orientation = obstacle['obstacle_initial_state_orientation']
+        velocity = 5.0 # constant 
+        yaw_rate = 0.0
+        safety_radius = 20.0
+        
+
+        qx = 0.0
+        qy = 0.0
+        qz = np.sin(orientation / 2.0)
+        qw = np.cos(orientation / 2.0)
+
+        dynamic_obstacles.append(
+            DynamicObstacle(
+                tag=type,
+                position=[position[0], position[1], 0.0],
+                orientation=(qx, qy, qz, qw),
+                velocity=velocity,
+                yaw_rate=yaw_rate,
+                safety_radius=20.0
+            )
+        )
+        
+        # now update the state of obstacle to put back into the context
+        dt = ctx.clock.get_dt()
+
+        x_pos, y_pos = position[0], position[1]
+        theta = orientation
+
+        if abs(yaw_rate) > 1e-6:
+            # turning motion
+            x_pos += (velocity / yaw_rate) * (np.sin(theta + yaw_rate * dt) - np.sin(theta))
+            y_pos += (velocity / yaw_rate) * (-np.cos(theta + yaw_rate * dt) + np.cos(theta))
+        else:
+            # straight-line motion
+            x_pos += velocity * np.cos(theta) * dt
+            y_pos += velocity * np.sin(theta) * dt
+
+        theta += yaw_rate * dt
+
+        # update obstacle state in-place (or rebuild, depending on your data model)
+        obstacle['obstacle_initial_position'] = (x_pos, y_pos)
+        obstacle['obstacle_initial_state_orientation'] = theta
+        
+        
     ctx.auxiliary_states['unsafe_region'] = create_unsafe_set(
         agent=x,
         dynamic_obstacles=dynamic_obstacles,
         dsf=DSF 
     )
-    
     return ctx.auxiliary_states 
 
 async def run_automaton():
@@ -141,7 +203,7 @@ async def run_automaton():
         ),
         initial_auxiliary_states=[
             AuxiliaryState("waypoints", aux0=scenarios["t1"]['environment']['waypoint']),
-            AuxiliaryState("obstacles", aux0={}),
+            AuxiliaryState("obstacles", aux0=dynamic_obstacles),
             AuxiliaryState("unsafe_region", aux0=scenarios['t1']['environment']['unsafe_region'])
         ],
         delta_time=0.1,

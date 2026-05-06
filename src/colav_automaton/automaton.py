@@ -17,7 +17,7 @@ from hybrid_automaton import ControlState
 
 from hybrid_automaton._runtime import _Runtime
 
-from hybrid_automaton import IntegrationFunction
+# from hybrid_automaton import IntegrationFunction
 
 from guards import *
 from resets import *
