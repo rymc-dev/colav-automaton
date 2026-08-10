@@ -8,7 +8,14 @@ off the us, based on real AIS data scenarios.
 import os
 import xml.etree.ElementTree as ET
 
-scenario_dir = "/home/ryan/commonocean-scenarios-main-scenarios-MarineCadastre_01_19-UpperWestCoast/commonocean-scenarios-main-scenarios-MarineCadastre_01_19-UpperWestCoast/scenarios/MarineCadastre_01_19/UpperWestCoast"
+# Path to a scenario directory from the external commonocean-scenarios
+# dataset (https://commonocean.cps.cit.tum.de/) - not part of this repo.
+# Set COMMONOCEAN_SCENARIO_DIR to point at your local checkout, or edit
+# the fallback below.
+scenario_dir = os.environ.get(
+    "COMMONOCEAN_SCENARIO_DIR",
+    "/home/ryan/commonocean-scenarios-main-scenarios-MarineCadastre_01_19-UpperWestCoast/commonocean-scenarios-main-scenarios-MarineCadastre_01_19-UpperWestCoast/scenarios/MarineCadastre_01_19/UpperWestCoast"
+)
 scenario_name = "USA_UWC-1_20190112_T-16.xml"
 
 tree = ET.parse(os.path.join(scenario_dir, scenario_name))

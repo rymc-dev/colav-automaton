@@ -1,72 +1,69 @@
-import os
-import sys
-
-sys.path.append(os.path.dirname(__file__))
-# base_dir = os.path.dirname(os.path.abspath(__file__))
-
-# for subdir in ['guards', 'dynamics', 'invariants', 'integration', 'resets']:
-#     sys.path.append(os.path.join(base_dir, subdir))
+import logging
 
 from hybrid_automaton import Automaton
 from hybrid_automaton.definition import State
 from hybrid_automaton.definition import Transition
 
-from hybrid_automaton import ContinuousState
-from hybrid_automaton import AuxiliaryState 
-from hybrid_automaton import ControlState
+from .guards import (
+    heading_not_within_tolerance_guard,
+    heading_within_tolerance_guard,
+    los_clear_to_waypoint_guard,
+    unsafe_conditions_guard,
+    safe_conditions_guard,
+    virtual_waypoints_guard,
+    waypoint_reached_guard,
+)
+from .resets import generate_new_virtual_waypoint, pop_virtual_waypoint
+from .invariants import failing_invariant
+from .dynamics import constant_heading_dynamics, flow_los_heading
 
-from hybrid_automaton._runtime import _Runtime
-
-# from hybrid_automaton import IntegrationFunction
-
-from guards import *
-from resets import *
-from invariants import *
-from dynamics import *
-from integration import *
-
-import numpy as np
+_logger = logging.getLogger(__name__)
 
 
 def ColavAutomaton(
     heading_tolerance: float = 0.2,
-    k_theta: float = 1.0, 
-    k_v: float = 1.0, 
-    constant_velocity: float = 2.0, 
+    k_theta: float = 1.0,
+    k_v: float = 1.0,
+    constant_velocity: float = 2.0,
     safety_radius: float = 30.0,
-    acceptance_radius: float = 5, 
-    los_distance_threshold: float = 60.0, 
-    longitudinal_offset_distance: float = 50.0, 
+    acceptance_radius: float = 5,
+    los_distance_threshold: float = 60.0,
+    longitudinal_offset_distance: float = 50.0,
     lateral_offset_distance: float = 50.0
 ) -> Automaton:
-    """state definitions""" 
-    
+    """state definitions"""
+
     q1 = State(
         name="Cruise",
         initial=True,
         flow=constant_heading_dynamics,
-        on_enter=lambda: print('cruise'),
+        on_enter=lambda: _logger.debug("entered Cruise"),
     )
     q2 = State(
         name="Transition_to_LOS",
         flow = flow_los_heading,
-        on_enter=lambda: print('T2LOS'),
+        on_enter=lambda: _logger.debug("entered Transition_to_LOS"),
     )
     q3 = State(
         name="Fallback",
+        # Hold current heading/velocity (no active re-planning) while too
+        # close to the unsafe region - see e6/e8 below. No invariant: unlike
+        # Waypoint_Reached, Fallback must be able to idle across multiple
+        # steps until safe_conditions_guard (e8) clears - it can't
+        # realistically clear on the very next step after entry, and
+        # failing_invariant would force an INVARIANT_VIOLATION immediately.
         flow=constant_heading_dynamics,
-        invariants=[failing_invariant],
-        on_enter=lambda: print('fallback'),
+        on_enter=lambda: _logger.debug("entered Fallback"),
     )
-    q4 = State( 
+    q4 = State(
         name="Waypoint_Reached",
         invariants=[failing_invariant],
         flow=constant_heading_dynamics,
-        on_enter=lambda: print('waypoint_reached'),
+        on_enter=lambda: _logger.debug("entered Waypoint_Reached"),
         final=True
     )
 
-    """transitions""" 
+    """transitions"""
 
     # NOTE: transitions from CRUISE (q1)
     e1 = Transition(
@@ -82,17 +79,12 @@ def ColavAutomaton(
         reset=generate_new_virtual_waypoint,
         priority=0
     )
-    # e3 = Transition(
-    #     name="e3",
-    #     to_state=q3,
-    #     guards=[unsafe_conditions_guard]
-    # )
     e4 = Transition(
         name="e4",
         to_state=q4,
         guards=[waypoint_reached_guard]
     )
-    q1.add_transitions([e1, e2, e4]) # e3
+    q1.add_transitions([e1, e2, e4])
 
     # NOTE: transitions from Turn to LOS (q2)
     e5 = Transition(
@@ -100,17 +92,21 @@ def ColavAutomaton(
         to_state=q1,
         guards=[heading_within_tolerance_guard]
     )
-    e6 = Transition( # NOTE: TO Fallback if unsafe
+    e6 = Transition(
         name="e6",
-        to_state=q1,
+        to_state=q3,
         guards=[unsafe_conditions_guard]
     )
-    # TODO: Maybe should have transition back to cruise
     q2.add_transitions([e5, e6])
 
-    # NOTE: transitions from FALLBACK (q3)
-    # e7 = None
-    # q3.add_transition(e7)
+    # NOTE: transitions from FALLBACK (q3) - recover to Cruise once the
+    # agent's safety radius no longer intersects the unsafe region.
+    e8 = Transition(
+        name="e8",
+        to_state=q1,
+        guards=[safe_conditions_guard]
+    )
+    q3.add_transition(e8)
 
     # NOTE: from goal reached
     e7 = Transition(
@@ -124,7 +120,7 @@ def ColavAutomaton(
 
     ha = Automaton(
         name="COLAV Automaton",
-        version="0.0.2",
+        version="1.0.0",
         states=[
             q1,
             q2,
@@ -146,78 +142,3 @@ def ColavAutomaton(
     )
 
     return ha
-
-def main(
-    initial_state, 
-    unsafe_region,
-    waypoint
-):
-    from hybrid_automaton import RunResult 
-    import asyncio 
-    ha: Automaton = ColavAutomaton()
-    results = None
-    
-    print (ha)
-    
-    async def run():
-        results: RunResult = await ha.activate(
-            initial_continuous_state=ContinuousState(
-                name="agent_state", 
-                x0=np.array(initial_state), 
-                x_labels=["x", "y", "theta", "velocity", "yaw_rate"]
-            ),
-            initial_auxiliary_states=[
-                AuxiliaryState(name="waypoints", aux0=waypoint, aux_buffer_len=10),
-                AuxiliaryState(name="unsafe_region", aux0=unsafe_region, aux_buffer_len=10, expected_update_hz=10)
-            ],
-            delta_time=0.1,
-            enable_real_time_mode=False,
-            continuous_state_sampler_enabled=True,
-            continuous_state_sampler_rate=100,
-            enable_self_integration=True,
-            auxiliary_states_sampler_enabled=True,
-            auxiliary_states_sampler_rate=10,
-            should_write_logs=True,
-            output_dir="./colav-automaton-logs"
-        )
-        print (results)
-    asyncio.run(run())
-
-# if __name__ == '__main__': 
-    
-#     main(
-#         initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
-#         unsafe_region=[
-#             np.array([30.0, 0.0]),
-#             np.array([70.0, 0.0]),
-#             np.array([70.0, 40.0]),
-#             np.array([30.0, 40.0]),
-#         ],
-#         waypoint=[120, 80]
-#     )
-
-# if __name__ == '__main__': 
-    
-#     main(
-#         initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
-#         unsafe_region=[
-#             np.array([60.0, 60.0]),
-#             np.array([90.0, 60.0]),
-#             np.array([90.0, 90.0]),
-#             np.array([60.0, 90.0]),
-#         ],
-#         waypoint=[150, 150]
-#     )
-
-if __name__ == '__main__': 
-    
-    main(
-        initial_state=[0.0, 0.0, 0.0, 0.0, 0.0], 
-        unsafe_region=[
-            [40.0, 20.0],
-            [80.0, 20.0],
-            [80.0, 60.0],
-            [40.0, 60.0],
-        ],
-        waypoint=[180, 140]
-    )

@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import imageio
 
@@ -6,7 +7,14 @@ from commonocean.common.file_reader import CommonOceanFileReader
 from commonocean.visualization.draw_dispatch_cr import draw_object
 from commonroad.visualization.mp_renderer import MPRenderer
 
-file_path = "/home/ryan/commonocean-sim/commonocean-scenarios-main/scenarios/HandcraftedTwoVesselEncounters_01_24/ZAM_AAA-1_20240121_T-1596.xml"
+# Path to a scenario from the external commonocean-scenarios dataset
+# (https://commonocean.cps.cit.tum.de/) - not part of this repo. Set
+# COMMONOCEAN_SCENARIO_PATH to point at your local checkout, or edit the
+# fallback below.
+file_path = os.environ.get(
+    "COMMONOCEAN_SCENARIO_PATH",
+    "/home/ryan/commonocean-sim/commonocean-scenarios-main/scenarios/HandcraftedTwoVesselEncounters_01_24/ZAM_AAA-1_20240121_T-1596.xml"
+)
 
 scenario, planning_problem_set = CommonOceanFileReader(file_path).open()
 

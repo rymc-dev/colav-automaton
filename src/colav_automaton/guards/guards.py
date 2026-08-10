@@ -1,13 +1,13 @@
-# !/usr/bin/python3 
+# !/usr/bin/python3
 # <---utf-8--->
 
-""" 
-guards for colav_automaton hybrid automaton which is built on the hybrid_automaton framework 
-packages. 
+"""
+guards for colav_automaton hybrid automaton which is built on the hybrid_automaton framework
+packages.
 """
 
 import math
-from typing import Dict, List
+from typing import Dict, Tuple
 from shapely.geometry import Polygon, LineString, Point
 from hybrid_automaton import RuntimeContext
 from hybrid_automaton.definition import guard
@@ -15,41 +15,31 @@ from hybrid_automaton.definition import guard
 
 @guard
 def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
-    """ 
-    guard function for hybrid automaton which checks if a heading provided is 
-    not within a heading tolerance
+    """
+    Guard function for hybrid automaton which checks if the agent's heading
+    is not within a heading tolerance of the bearing to its current waypoint.
 
-    Docs: 
+    Docs:
         Flowchart:
             https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/heading_not_within_tolerance_guard.mmd
-        DataTable: 
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/heading_not_within_tolerance_guard_datatable.txt
 
+    Args:
+        ctx: RuntimeContext
+            uses ctx.continuous_state (agent [x, y, theta, ...] - theta in
+            radians), ctx.auxiliary_states['waypoints'] (current target
+            waypoint [wx, wy]), and ctx.configuration['heading_tolerance_on']
+            (float, radians)
 
-    Args: 
-        x: List
-            represents continous state of agent in this case
-            agent continous state is [x: float, y: float, theta: float]
-            theta should be in radians
-        aux_x: Dict
-            represents auxielary continous states within state space 
-            in this case we utilize aux_x["waypoints"] = [[wx, wy], [wx, wy]]
-            to get the current_waypoint we are navigating towards
-        cfg: Dict
-            represents context values of the hybrid automaton, this can include
-            automaton configuration and also details regarding time since last transition
-            and so on. In this case we use cfg['cfg']['heading_tolerance'] which is a float
-            value representing heading_tolerance in radians. 
-        u: Dict
-            this are control inputs we expected, this this case is is None by default and not used
-        # dt: float
-        #     delta time between guard checks, this is not used within this guard however, just 
-        #     a required arg for integration with automaton guards # TODO: remove this, it's not needed anymore!
+    Returns:
+        bool
+            True if heading error is OUTSIDE tolerance.
 
-    Returns: 
-        Returns True if heading error is OUTSIDE tolerance.
-
-    Raises: 
-        ... #TODO: Change cfg to cfg
+    Raises:
+        ValueError
+            if continuous state isn't a 5-element vector, or the current
+            waypoint is missing.
     """
     if len(ctx.continuous_state.latest()) != 5:
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
@@ -60,7 +50,7 @@ def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     waypoint = waypoints_aux.latest()
 
     if waypoint is None:
-        raise ValueError('invalid waypoints in aux_x') 
+        raise ValueError('invalid waypoints in aux_x')
 
     xx, xy, yaw = x_state[0:3]            # current position + heading
     wx, wy = waypoint # waypoint position
@@ -80,37 +70,34 @@ def heading_not_within_tolerance_guard(ctx: RuntimeContext) -> bool:
 
 @guard
 def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
-    """ 
-    Guard function for hybrid automaton which checks if a heading provided is 
-    within a heading tolerance.
+    """
+    Guard function for hybrid automaton which checks if the agent's heading
+    is within a heading tolerance of the bearing to its current waypoint.
+    Uses a separate (smaller) "off" tolerance from
+    heading_not_within_tolerance_guard's "on" tolerance, forming a deadband
+    to stop chattering between Cruise and Transition_to_LOS.
 
-    Docs: 
-        Flowchart: 
+    Docs:
+        Flowchart:
             https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/heading_within_tolerance_guard.mmd
-        DataTable: 
-            ...
-    
-    Args: 
-        x: List
-            Represents continuous state of the agent.
-            Agent continuous state is [x: float, y: float, theta: float]
-            theta should be in radians.
-        aux_x: Dict
-            Represents auxiliary continuous states.
-            Uses aux_x["waypoints"] = [[wx, wy], [wx, wy]] for current navigation targets.
-        cfg: Dict
-            Context values of the hybrid automaton.
-            Uses cfg['cfg']['heading_tolerance'] (float, in radians).
-        u: Dict
-            Control inputs (unused for this guard).
-        dt: float
-            Delta time between guard checks (unused).
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/heading_within_tolerance_guard_datatable.txt
 
-    Returns: 
-        Returns True if heading error is WITHIN tolerance.
+    Args:
+        ctx: RuntimeContext
+            uses ctx.continuous_state (agent [x, y, theta, ...] - theta in
+            radians), ctx.auxiliary_states['waypoints'] (current target
+            waypoint [wx, wy]), and ctx.configuration['heading_tolerance_off']
+            (float, radians)
+
+    Returns:
+        bool
+            True if heading error is WITHIN tolerance.
 
     Raises:
-        ...
+        ValueError
+            if continuous state isn't a 5-element vector, waypoints are
+            missing from auxiliary state, or configuration isn't a dict.
     """
     if len(ctx.continuous_state.latest()) != 5:
         raise ValueError('invalid x value for this guard, expected x to be a numpy array of 5 float values')
@@ -118,7 +105,6 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     if 'waypoints' not in ctx.auxiliary_states:
         raise ValueError('invalid aux_x for this guard: waypoints not found')
 
-    
     x_state = ctx.continuous_state.latest()
     # Extract waypoints from the correct AuxiliaryState
     waypoints_aux = ctx.auxiliary_states['waypoints']
@@ -126,15 +112,10 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
 
     if waypoint is None:
         raise ValueError('invalid waypoints in aux_x')
-    
+
     if not isinstance(ctx.configuration, Dict):
         raise ValueError('invalid cfg')
-    
-    # try: 
-    #     cfg['heading_tolerance']
-    # except Exception as e:
-    #     raise Exception('cfg heading tolerance is not in context, but required for this guard')
-    
+
     xx, xy, yaw = x_state[0:3]            # current position + heading
     wx, wy = waypoint # waypoint position
 
@@ -152,125 +133,170 @@ def heading_within_tolerance_guard(ctx: RuntimeContext) -> bool:
     return abs(error) < ctx.configuration["heading_tolerance_off"]
 
 @guard
-def los_clear_to_waypoint_guard(ctx: RuntimeContext) -> bool: 
-    """  
-    
-    Docs: 
-        Flowchart: 
+def los_clear_to_waypoint_guard(ctx: RuntimeContext) -> bool:
+    """
+    Guard function for hybrid automaton which checks if the straight-line
+    path (line of sight) from the agent's current position to its current
+    waypoint passes through the unsafe region within a threshold distance.
+
+    Docs:
+        Flowchart:
             https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/los_clear_to_waypoint_guard.mmd
-        DataTable: 
-            ...
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/los_clear_to_waypoint_guard_datatable.txt
 
-    Args: 
-        ... 
+    Args:
+        ctx: RuntimeContext
+            uses ctx.continuous_state (agent position), ctx.auxiliary_states['waypoints']
+            (current target waypoint) and ['unsafe_region'] (unsafe region
+            polygon vertices), and ctx.configuration['los_distance_threshold']
+            (float, meters, default 50.0)
 
-    Raises: 
-        ValueError
-        if any of the inputs are invalid
-
-    Returns: 
+    Returns:
         bool
-            True if line of sight to waypoint is NOT clear representing guard trigger
+            True if the line of sight to the waypoint is NOT clear
+            (intersects the unsafe region within the threshold distance),
+            representing guard trigger.
     """
 
-    current_waypoint: List[float, float] = ctx.auxiliary_states['waypoints'].latest()
+    current_waypoint: Tuple[float, float] = ctx.auxiliary_states['waypoints'].latest()
 
     los: LineString = LineString([ctx.continuous_state.latest()[0:2], current_waypoint])
     unsafe_region: Polygon = Polygon(ctx.auxiliary_states["unsafe_region"].latest())
 
-    if los.intersects(unsafe_region): 
+    if los.intersects(unsafe_region):
         intersection = los.intersection(unsafe_region)
 
         if intersection.is_empty:
             return False
-        
+
         if isinstance(intersection, LineString):
             intersection = intersection.interpolate(0.5, normalized=True)
 
         intersection_distance = math.dist(
             ctx.continuous_state.latest()[0:2], (intersection.x, intersection.y)
         )
-        if intersection_distance <= ctx.configuration.get('los_distance_threshold', 50.0): 
+        if intersection_distance <= ctx.configuration.get('los_distance_threshold', 50.0):
             return True
 
     return False
 
 @guard
-def unsafe_conditions_guard(ctx: RuntimeContext) -> bool: 
-    """  
-    
-    Docs: 
+def unsafe_conditions_guard(ctx: RuntimeContext) -> bool:
+    """
+    Guard function for hybrid automaton which checks if the agent's safety
+    circle (a disk of radius `agent_safety_radius` centered on the agent's
+    current position) intersects the unsafe region polygon.
+
+    Docs:
         flowchart:
             https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/unsafe_conditions_guard.mmd
-        DataTable: 
-            ...
-    
-    Args: 
-        ...
-    
-    Raises: 
-        ValueError
-            if any of the inputs are invalid
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/unsafe_conditions_guard_datatable.txt
 
-    Returns: 
-        bool 
-            True if unsafe conditions are detected representing guard trigger
+    Args:
+        ctx: RuntimeContext
+            uses ctx.continuous_state (agent position), ctx.auxiliary_states['unsafe_region']
+            (unsafe region polygon vertices), and ctx.configuration['agent_safety_radius']
+
+    Returns:
+        bool
+            True if the agent's safety circle intersects the unsafe region,
+            representing guard trigger (routes to the Fallback state).
     """
-
     agent_safety_radius = ctx.configuration.get('agent_safety_radius', 100.0)
     agent_circle = Point(ctx.continuous_state.latest()[0:2]).buffer(agent_safety_radius)
 
     unsafe_region: Polygon = Polygon(ctx.auxiliary_states['unsafe_region'].latest())
 
-    eval = agent_circle.intersects(unsafe_region)
-    return eval
-    
+    return agent_circle.intersects(unsafe_region)
+
+@guard
+def safe_conditions_guard(ctx: RuntimeContext) -> bool:
+    """
+    Guard function for hybrid automaton which checks if the agent's safety
+    circle no longer intersects the unsafe region - the logical inverse of
+    unsafe_conditions_guard. Used to recover out of the Fallback state once
+    conditions are safe again.
+
+    Docs:
+        flowchart:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/safe_conditions_guard.mmd
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/safe_conditions_guard_datatable.txt
+
+    Args:
+        ctx: RuntimeContext
+            same inputs as unsafe_conditions_guard
+
+    Returns:
+        bool
+            True once the agent's safety circle no longer intersects the
+            unsafe region, representing guard trigger (routes back to Cruise).
+    """
+    agent_safety_radius = ctx.configuration.get('agent_safety_radius', 100.0)
+    agent_circle = Point(ctx.continuous_state.latest()[0:2]).buffer(agent_safety_radius)
+
+    unsafe_region: Polygon = Polygon(ctx.auxiliary_states['unsafe_region'].latest())
+
+    return not agent_circle.intersects(unsafe_region)
+
 @guard
 def virtual_waypoints_guard(ctx: RuntimeContext) -> bool:
     """
-    validate is there are virtual waypoints in the waypoints list 
+    Checks whether there are virtual (intermediate/avoidance) waypoints
+    still queued ahead of the original goal waypoint.
 
-    Docs: 
-        flowchart: 
+    Docs:
+        flowchart:
             https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/virtual_waypoints_guard.mmd
-        DataTable: 
-            ...
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/virtual_waypoints_guard_datatable.txt
 
-    Args: 
-        ...
+    Args:
+        ctx: RuntimeContext
+            uses ctx.auxiliary_states['waypoints'].aux_buffer (the full
+            waypoint stack - each generate_new_virtual_waypoint() call
+            pushes one entry, each pop_virtual_waypoint() call removes one)
 
-    Raises: 
+    Raises:
         ValueError
-            if aux_x is invalid
-    Returns: 
-        bool 
-            True if there are virtual waypoints present, representing guard trigger
+            if ctx.auxiliary_states is missing or has no 'waypoints' entry
+
+    Returns:
+        bool
+            True if there is more than one waypoint on the stack (i.e. at
+            least one virtual waypoint queued in front of the goal),
+            representing guard trigger.
     """
 
     if ctx.auxiliary_states is None or 'waypoints' not in ctx.auxiliary_states:
-        raise ValueError('invalid aux_x') 
-    
+        raise ValueError('invalid aux_x')
+
     return len(ctx.auxiliary_states['waypoints'].aux_buffer) > 1
 
 @guard
 def waypoint_reached_guard(ctx: RuntimeContext) -> bool:
     """
-    automaton for 
+    Guard function for hybrid automaton which checks if the agent has
+    reached its current waypoint, within an acceptance radius.
 
-    Docs: 
-        flowchart: 
+    Docs:
+        flowchart:
             https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/waypoint_reached_guard.mmd
-        DataTable: 
-            ...
+        DataTable:
+            https://github.com/rymc-dev/colav-automaton/blob/main/docs/guards/waypoint_reached_guard_datatable.txt
 
-    Args: 
-        ...
-    Raises: 
-        ValueError
-            if any of the inputs are invalid
-    Returns: 
+    Args:
+        ctx: RuntimeContext
+            uses ctx.continuous_state (agent position), ctx.auxiliary_states['waypoints']
+            (current target waypoint), and ctx.configuration['acceptance_radius']
+            (float, meters, default 20.0)
+
+    Returns:
         bool
-            True if waypoint is reached within acceptance radius representing guard trigger
+            True if waypoint is reached within acceptance radius,
+            representing guard trigger.
     """
     pos = ctx.continuous_state.latest()[0:2]
     waypoint = ctx.auxiliary_states['waypoints'].latest()

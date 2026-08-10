@@ -1,8 +1,5 @@
-
-from typing import Dict, List
 import math
 import numpy as np
-from hybrid_automaton import Automaton
 from hybrid_automaton import RuntimeContext
 from hybrid_automaton.definition import continuous_dynamics
 

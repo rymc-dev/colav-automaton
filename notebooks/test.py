@@ -1,8 +1,9 @@
+import os
 import xml
 import matplotlib.pyplot as plt
 import xml.etree.cElementTree as ET
 
-scneario_file = '/home/ryan/colav-automaton/notebooks/scenarios/scenario_1.xml'
+scneario_file = os.path.join(os.path.dirname(__file__), 'scenarios', 'scenario_1.xml')
 
 scenario_tree = ET.parse(scneario_file)
 scenario_root = scenario_tree.getroot()

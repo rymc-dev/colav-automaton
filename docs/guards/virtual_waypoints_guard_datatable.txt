@@ -1,0 +1,16 @@
+Guard: virtual_waypoints_guard
+Description: True if there is more than one waypoint on the waypoint stack
+(ctx.auxiliary_states['waypoints'].aux_buffer) - i.e. at least one virtual
+(avoidance) waypoint is still queued in front of the original goal waypoint.
+Each generate_new_virtual_waypoint() reset pushes one entry onto the stack;
+each pop_virtual_waypoint() reset removes one. Used by e7
+(Waypoint_Reached -> Cruise) to decide whether reaching the current waypoint
+means "pop back to the previous waypoint" vs. the run being fully complete.
+Source: src/colav_automaton/guards/guards.py
+Tests:  tests/test_guards.py::test_virtual_waypoints_guard
+
+# | Waypoint stack (aux_buffer)          | Depth | Result | Reasoning
+--|----------------------------------------|-------|--------|--------------------------------------
+1 | [(10,10)]                               | 1     | False  | only the original goal waypoint remains
+2 | [(10,10), (20,20)]                      | 2     | True   | one virtual waypoint queued ahead of the goal
+3 | [(1,1), (2,2), (3,3)]                   | 3     | True   | multiple virtual waypoints queued

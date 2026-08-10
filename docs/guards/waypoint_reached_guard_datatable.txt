@@ -1,0 +1,15 @@
+Guard: waypoint_reached_guard
+Description: True if the agent's distance to its current waypoint is within
+ctx.configuration['acceptance_radius'] meters (default 20.0). Triggers e4
+(Cruise -> Waypoint_Reached).
+Source: src/colav_automaton/guards/guards.py
+Tests:  tests/test_guards.py::test_waypoint_reached_guard,
+        tests/test_guards.py::test_waypoint_reached_guard_uses_default_acceptance_radius
+
+# | Agent (x, y) | Waypoint (x, y) | acceptance_radius | Distance | Result | Reasoning
+--|---------------|-------------------|---------------------|----------|--------|--------------------------------
+1 | (0.0, 0.0)    | (20.0, 20.0)      | 10.0                | ~28.28   | False  | far outside acceptance radius
+2 | (5.0, 5.0)    | (5.0, 5.0)        | 10.0                | 0.0      | True   | agent exactly at the waypoint
+3 | (0.0, 0.0)    | (5.0, 0.0)        | 10.0                | 5.0      | True   | within acceptance radius
+4 | (0.0, 0.0)    | (10.1, 0.0)       | 10.0                | 10.1     | False  | just outside acceptance radius
+5 | (0.0, 0.0)    | (15.0, 0.0)       | (default) 20.0      | 15.0     | True   | default radius used when key absent from configuration

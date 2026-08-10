@@ -1,0 +1,7 @@
+flowchart TD
+    A([Start: safe_conditions_guard]) --> B["agent_safety_radius = ctx.configuration.get('agent_safety_radius', 100.0)"]
+    B --> C[agent_circle = Point agent_position . buffer agent_safety_radius]
+    C --> D[unsafe_region = Polygon ctx.auxiliary_states'unsafe_region'.latest]
+    D --> E{agent_circle intersects unsafe_region?}
+    E -->|No| F([Return True - safe, triggers e8 back to Cruise])
+    E -->|Yes| G([Return False - still unsafe])

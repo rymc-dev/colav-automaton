@@ -1,0 +1,12 @@
+Guard: unsafe_conditions_guard
+Description: True if a disk of radius ctx.configuration['agent_safety_radius']
+(default 100.0) centered on the agent's current position intersects the
+unsafe region polygon. Triggers e6 (Transition_to_LOS -> Fallback).
+Source: src/colav_automaton/guards/guards.py
+Tests:  tests/test_guards.py::test_unsafe_conditions_guard
+
+# | Agent (x, y)   | Unsafe region (box)         | agent_safety_radius | Result | Reasoning
+--|-----------------|------------------------------|----------------------|--------|------------------------------------------
+1 | (0.0, 0.0)      | (100,100)-(110,110)          | 5.0                  | False  | agent circle nowhere near the unsafe region
+2 | (105.0, 105.0)  | (100,100)-(110,110)          | 1.0                  | True   | agent position is inside the unsafe region
+3 | (98.0, 105.0)   | (100,100)-(110,110)          | 5.0                  | True   | agent outside, but safety circle overlaps the region

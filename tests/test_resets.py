@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import pytest
-from hybrid_automaton import RuntimeContext
+from hybrid_automaton import RuntimeContext, ContinuousState, AuxiliaryState
 from unittest.mock import MagicMock
 from colav_automaton.resets import generate_new_virtual_waypoint
 from colav_automaton.resets import pop_virtual_waypoint
@@ -13,56 +13,79 @@ import numpy.testing as npt
 
 
 @pytest.mark.parametrize(
-    "agent_pos, risk_region_vertices, config, expected_vw_point",
+    "agent_pos, risk_region_vertices, goal, config, expected_vw_point",
     [
-        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], {}, [30.0, 20.0]), 
-        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], {'longitudinal_offset_distance': 5.0, 'lateral_offset_distance': 5.0}, [36.93375, 18.61325]), 
-        
+        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], [100.0, 0.0], {}, [30.0, 20.0]),
+        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], [100.0, 0.0], {'longitudinal_offset_distance': 5.0, 'lateral_offset_distance': 5.0}, [30.0, 15.0]),
+
     ],
-    ids=[ 
+    ids=[
          "Test Case 1: Agent at origin, risk region vertices form a polygon, expected virtual waypoint is the rightmost visible vertex, no config.",
          "Test Case 2: Agent at origin, risk region vertices form a polygon, expected virtual waypoint is the rightmost visible vertex, with config offsets."
     ]
 )
-def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, config, expected_vw_point): 
+def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, config, expected_vw_point):
     """
-    Docstring for test_generate_new_virtual_waypoint
-    
-    :param agent_pos: Description
+    :param agent_pos: agent's [x, y, heading]
     :type agent_pos: list[float]
-    :param risk_region_vertices: Description
+    :param risk_region_vertices: unsafe region polygon vertices
     :type risk_region_vertices: list[list[float]]
-    :param config: Description
+    :param goal: current target waypoint - used to pick which side (left/right)
+        of the visible vertex to offset the new virtual waypoint toward
+    :type goal: list[float]
+    :param config: automaton configuration (offset distances)
     :type config: dict[str, float]
-    :param expected_vw_point: Description
+    :param expected_vw_point: expected virtual waypoint pushed via .add()
     :type expected_vw_point: list[float]
     """
     ctx = MagicMock(spec=RuntimeContext)
 
-    from hybrid_automaton._runtime import _Runtime
-    ContinuousState = _Runtime.Context.ContinuousState
-    AuxiliaryState = _Runtime.Context.AuxiliaryState
-
-    continuous_state = MagicMock(spec=ContinuousState) 
+    continuous_state = MagicMock(spec=ContinuousState)
     continuous_state.latest.return_value = agent_pos
     ctx.continuous_state = continuous_state
 
     risk_region_vertices_aux_state = MagicMock(spec=AuxiliaryState)
     risk_region_vertices_aux_state.latest.return_value = risk_region_vertices
     waypoints_aux_state = MagicMock(spec=AuxiliaryState)
+    waypoints_aux_state.latest.return_value = goal
+
+    ctx.auxiliary_states = {
+        'unsafe_region': risk_region_vertices_aux_state,
+        'waypoints': waypoints_aux_state
+    }
+    ctx.configuration = config
+
+    updated_ctx: RuntimeContext = generate_new_virtual_waypoint(ctx)
+
+    called_arg = waypoints_aux_state.add.call_args[0][0]
+    npt.assert_allclose(called_arg, np.array(expected_vw_point), atol=1e-6)
+    assert updated_ctx is ctx, "Expected the same context object to be returned after reset execution."
+
+
+def test_generate_new_virtual_waypoint_raises_with_no_current_waypoint():
+    """If there's no current waypoint to offset relative to, fail loudly
+    rather than silently producing a garbage offset."""
+    ctx = MagicMock(spec=RuntimeContext)
+
+    continuous_state = MagicMock(spec=ContinuousState)
+    continuous_state.latest.return_value = [0.0, 0.0, 0.0]
+    ctx.continuous_state = continuous_state
+
+    risk_region_vertices_aux_state = MagicMock(spec=AuxiliaryState)
+    risk_region_vertices_aux_state.latest.return_value = [
+        [30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]
+    ]
+    waypoints_aux_state = MagicMock(spec=AuxiliaryState)
     waypoints_aux_state.latest.return_value = []
 
     ctx.auxiliary_states = {
         'unsafe_region': risk_region_vertices_aux_state,
         'waypoints': waypoints_aux_state
-    }  
-    ctx.configuration = config
+    }
+    ctx.configuration = {}
 
-    updated_ctx: RuntimeContext = generate_new_virtual_waypoint(ctx) 
-
-    called_arg = waypoints_aux_state.add.call_args[0][0]
-    npt.assert_allclose(called_arg, np.array(expected_vw_point), atol=1e-6)
-    assert updated_ctx is ctx, "Expected the same context object to be returned after reset execution."
+    with pytest.raises(ValueError, match="no current waypoint"):
+        generate_new_virtual_waypoint(ctx)
 
 @pytest.mark.parametrize(
     "waypoints, should_raise",
@@ -74,10 +97,6 @@ def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, config, 
 )
 def test_pop_virtual_waypoint(waypoints, should_raise):
     ctx = MagicMock(spec=RuntimeContext)
-
-    from hybrid_automaton._runtime import _Runtime
-
-    AuxiliaryState = _Runtime.Context.AuxiliaryState
 
     # Initialize with dummy, then manually add each waypoint
     waypoints_aux = AuxiliaryState(

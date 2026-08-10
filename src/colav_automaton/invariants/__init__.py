@@ -1,11 +1,9 @@
-from .invariants import is_goal_waypoint_invariant
 from .invariants import failing_invariant
 
-__author__ = ""
-__version__ = ""
-__description__ = ""
+__author__ = "Ryan McKee <ryanmckee47@icloud.com>"
+__version__ = "1.0.0"
+__description__ = "hybrid-automaton framework invariants for colav-automaton"
 
 __all__ = [
-    "is_goal_waypoint_invariant",
     "failing_invariant"
 ]

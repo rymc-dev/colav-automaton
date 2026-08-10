@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 from .automaton import ColavAutomaton
+from .__about__ import __version__
 
-__author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
-__version__ = "0.0.1"
-__about__ = ""
+__author__ = "Ryan McKee <ryanmckee47@icloud.com>"
 
 __all__ = [
-    "ColavAutomaton"
+    "ColavAutomaton",
+    "__version__",
 ]

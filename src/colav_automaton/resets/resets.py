@@ -63,26 +63,22 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     rightmost_x = vx_arr[idx_rightmost]
     rightmost_y = vy_arr[idx_rightmost]
 
-    # Vector from agent to rightmost vertex
-    vec = np.array([rightmost_x - xx, rightmost_y - yy])
-    norm = np.linalg.norm(vec)
-    if norm == 0:
+    goal = np.array(ctx.auxiliary_states['waypoints'].latest())
+    if goal.size == 0:
         raise ValueError(
-            "Agent position coincides with the rightmost vertex; cannot compute offset direction.")
-    direction = vec / norm
-
-    # Compute right perpendicular vector to 'direction' (for right offset)
-    # If forward vector is (dx, dy), right vector is (dy, -dx)
-    right_perp = np.array([direction[1], -direction[0]])
-
-    goal = np.array(ctx.auxiliary_states['waypoints'].latest())  # (120, 40)
+            "no current waypoint set; cannot determine which side to offset the virtual waypoint toward")
     agent = np.array([xx, yy])
-    forward = (goal - agent) / np.linalg.norm(goal - agent)     # agent→goal unit vector
-    right_perp = np.array([forward[1], -forward[0]])            # perpendicular to that
+    goal_vec = goal - agent
+    goal_norm = np.linalg.norm(goal_vec)
+    if goal_norm == 0:
+        raise ValueError(
+            "Agent position coincides with the current waypoint; cannot compute offset direction.")
+    forward = goal_vec / goal_norm                    # agent→goal unit vector
+    right_perp = np.array([forward[1], -forward[0]])  # perpendicular to that
 
     adjusted_x = float(rightmost_x + right_perp[0] * ctx.configuration.get('lateral_offset_distance', 0))
     adjusted_y = float(rightmost_y + right_perp[1] * ctx.configuration.get('lateral_offset_distance', 0))
-    ctx.auxiliary_states['waypoints'].add([adjusted_x, adjusted_y]) # TODO: Need to read how to append an auxiliary context update.
+    ctx.auxiliary_states['waypoints'].add([adjusted_x, adjusted_y])
     return ctx
 
 @reset

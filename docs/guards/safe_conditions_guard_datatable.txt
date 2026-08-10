@@ -1,0 +1,14 @@
+Guard: safe_conditions_guard
+Description: Logical inverse of unsafe_conditions_guard - True once the
+agent's safety circle no longer intersects the unsafe region. Added in
+v1.0.0 to give the Fallback state a real way back to Cruise (e8), fixing
+e6 which previously routed to Cruise instead of Fallback with no recovery
+path out of Fallback at all.
+Source: src/colav_automaton/guards/guards.py
+Tests:  tests/test_guards.py::test_safe_conditions_guard
+
+# | Agent (x, y)   | Unsafe region (box)         | agent_safety_radius | Result | Reasoning
+--|-----------------|------------------------------|----------------------|--------|------------------------------------------
+1 | (0.0, 0.0)      | (100,100)-(110,110)          | 5.0                  | True   | agent circle clear of the unsafe region
+2 | (105.0, 105.0)  | (100,100)-(110,110)          | 1.0                  | False  | agent still inside the unsafe region
+3 | (98.0, 105.0)   | (100,100)-(110,110)          | 5.0                  | False  | agent still overlaps the unsafe region

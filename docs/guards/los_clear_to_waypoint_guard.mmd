@@ -1,15 +1,16 @@
 flowchart TD
-    A([Start: los_clear_to_waypoint_guard]) --> B{Are inputs valid?}
-    B -->|Yes| C[current_waypoint = waypoints.first]
-    B -->|No| D[/Raise ValueError/]
-    D --> J
-
-    C --> E[los = LineString current_position, current_waypoint]
-    E --> F[unsafe_region = Polygon unsafe_area]
-    F --> G{los intersects unsafe_region?}
-
-    G -->|Yes| H[Return True - LOS NOT clear]
-    G -->|No| I[Return False - LOS clear]
-
-    H --> J([End])
-    I --> J
+    A([Start: los_clear_to_waypoint_guard]) --> B[current_waypoint = ctx.auxiliary_states'waypoints'.latest]
+    B --> C[los = LineString agent_position, current_waypoint]
+    C --> D[unsafe_region = Polygon ctx.auxiliary_states'unsafe_region'.latest]
+    D --> E{los intersects unsafe_region?}
+    E -->|No| F([Return False - LOS clear])
+    E -->|Yes| G[intersection = los.intersection unsafe_region]
+    G --> H{intersection is empty?}
+    H -->|Yes| F
+    H -->|No| I{intersection is a LineString?}
+    I -->|Yes| J[intersection = midpoint of intersection segment]
+    I -->|No| K
+    J --> K[intersection_distance = dist agent_position, intersection]
+    K --> L{"intersection_distance <= los_distance_threshold?<br/>(default 50.0)"}
+    L -->|Yes| M([Return True - LOS blocked])
+    L -->|No| F

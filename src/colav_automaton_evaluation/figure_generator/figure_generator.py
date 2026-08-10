@@ -71,7 +71,7 @@ def plot_xy_position_over_time(x, aux_x_vertices, waypoints=None):
     
     # --- Unsafe region (polygon exterior) ---
     verts = np.array(aux_x_vertices)
-    if verts is not None and verts > 0: 
+    if verts is not None and verts.size > 0:
         closed_verts = np.vstack([verts, verts[0]])   # Close polygon
         unsafe_line = ax.plot(
             closed_verts[:, 0],
@@ -83,7 +83,7 @@ def plot_xy_position_over_time(x, aux_x_vertices, waypoints=None):
         )[0]
     
     # Formatting
-    ax.set_title('Hybrid Automaton <v0.0.4> - XY Position & Unsafe Region', fontsize=16, y=1.02)
+    ax.set_title('COLAV Automaton - XY Position & Unsafe Region', fontsize=16, y=1.02)
     ax.set_xlabel("X Position (m)", fontsize=12)
     ax.set_ylabel("Y Position (m)", fontsize=12)
     ax.legend(loc='best')

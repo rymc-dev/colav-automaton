@@ -36,7 +36,7 @@ off the us, based on real AIS data scenarios.
 import os
 import xml.etree.ElementTree as ET
 
-scenario_dir = "/home/ryan/colav-automaton/scenarios"
+scenario_dir = os.path.join(os.path.dirname(__file__), "..", "scenarios")
 scenario_name = "USA_TEST_HeadOn.xml"
 
 tree = ET.parse(os.path.join(scenario_dir, scenario_name))

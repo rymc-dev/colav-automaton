@@ -1,8 +1,8 @@
 flowchart TD
-    A([Start: waypoint_reached_guard]) --> B{inputs valid?}
-    B -- Yes --> E[acceptance_radius = ctx.cfg.acceptance_radius] 
-    B -- No --> D[/Raise ValueError/] 
-    D --> H
-    E --> F["dist = dist(x[0:1], aux_x.waypoints[-1])"]
-    F --> G[/acceptance_radius <= dist/]
-    G --> H([End])
+    A([Start: waypoint_reached_guard]) --> B["pos = agent_position[0:2]"]
+    B --> C[waypoint = ctx.auxiliary_states'waypoints'.latest]
+    C --> D["acceptance_radius = ctx.configuration.get('acceptance_radius', 20.0)"]
+    D --> E["distance = dist pos, waypoint"]
+    E --> F{acceptance_radius >= distance?}
+    F -->|Yes| G([Return True - waypoint reached, triggers e4])
+    F -->|No| H([Return False])

@@ -1,7 +1,6 @@
-__author__ = "Ryan McKee <r.mckee@liverpool.ac.uk>"
-__version__ = "0.0.1"
-__description__ = "dynamics functions for the states of hybrid-automaton colav-automaton" \
-                  ""
+__author__ = "Ryan McKee <ryanmckee47@icloud.com>"
+__version__ = "1.0.0"
+__description__ = "dynamics functions for the states of hybrid-automaton colav-automaton"
 
 from .dynamics import constant_heading_dynamics, flow_los_heading
 

@@ -1,0 +1,16 @@
+Guard: los_clear_to_waypoint_guard
+Description: True if the straight-line path (line of sight) from the agent to
+its current waypoint intersects the unsafe region within
+ctx.configuration['los_distance_threshold'] meters (default 50.0) of the
+agent. Note the guard name is a slight misnomer - True means the LOS is
+BLOCKED (not clear), which is what triggers e2 (Cruise -> Transition_to_LOS
+with generate_new_virtual_waypoint reset).
+Source: src/colav_automaton/guards/guards.py
+Tests:  tests/test_guards.py::test_los_clear_to_waypoint_guard
+
+# | Agent (x,y) | Waypoint (x,y) | Unsafe region                          | Threshold | Result | Reasoning
+--|-------------|-----------------|-----------------------------------------|-----------|--------|---------------------------------------------
+1 | (0.0, 0.0)  | (100.0, 0.0)    | [] (no vertices)                        | 50.0      | False  | degenerate polygon, no intersection possible
+2 | (0.0, 0.0)  | (10.0, 0.0)     | box far off the LOS (100-110, 100-110)  | 50.0      | False  | unsafe region nowhere near the LOS segment
+3 | (0.0, 0.0)  | (20.0, 0.0)     | box straddling the LOS at x in [5,8]    | 50.0      | True   | LOS crosses the region within threshold
+4 | (0.0, 0.0)  | (200.0, 0.0)    | box straddling the LOS at x in [150,160]| 10.0      | False  | LOS crosses the region, but past threshold distance

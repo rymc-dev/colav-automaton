@@ -1,3 +1,4 @@
+import os
 import csv
 import ast
 import re
@@ -8,8 +9,9 @@ from matplotlib.patches import Polygon
 from typing import Tuple, List
 
 
-continuous_state_file_path = "/home/ryan/colav-automaton-logs/continuous_state.csv"
-aux_file_path = "/home/ryan/colav-automaton-logs/auxiliary_state.csv"
+_LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "colav-automaton-logs")
+continuous_state_file_path = os.path.join(_LOGS_DIR, "continuous_state.csv")
+aux_file_path = os.path.join(_LOGS_DIR, "auxiliary_state.csv")
 
 
 # ----------------------------

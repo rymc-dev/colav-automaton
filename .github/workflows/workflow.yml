@@ -1,0 +1,83 @@
+name: colav-automaton CI/CD
+run-name: ${{ github.actor }} triggered CI/CD run.
+
+on:
+  push:
+    branches: [stable]
+    tags: ["v*"]
+  pull_request:
+    branches: [stable]
+  release:
+    types: [published]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Package With Test Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Run Tests
+        run: pytest tests/ -v
+
+  build:
+    name: Build Package
+    needs: [test]
+    if: github.event_name == 'push' || github.event_name == 'release'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Build Tools
+        run: |
+          pip install --upgrade pip
+          pip install hatch
+
+      - name: Build colav-automaton whl
+        run: hatch build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-files
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/colav-automaton/
+    permissions:
+      id-token: write  # required for PyPI trusted publishing (OIDC)
+
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: dist/
+
+      - name: Publish To PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

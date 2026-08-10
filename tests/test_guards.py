@@ -8,17 +8,17 @@ from colav_automaton.guards import (
     heading_within_tolerance_guard,
     los_clear_to_waypoint_guard,
     unsafe_conditions_guard,
+    safe_conditions_guard,
     virtual_waypoints_guard,
     waypoint_reached_guard,
 )
 from hybrid_automaton import RuntimeContext as _RuntimeContext
+from hybrid_automaton import ContinuousState as _ContinuousState
+from hybrid_automaton import AuxiliaryState as _AuxiliaryState
 import pytest
 from unittest.mock import MagicMock
 import numpy as np
 import math
-
-_ContinuousState = _RuntimeContext.ContinuousState
-_AuxiliaryState = _RuntimeContext.AuxiliaryState
 
 
 # ---------------------------------------------------------------------------
@@ -67,22 +67,22 @@ def _make_ctx(
         # Agent heading already points at waypoint → error within tolerance → guard = False
         (
             np.array([0.0, 0.0, math.atan2(10.0, 10.0), 0.0, 0.0]),
-            [[10.0, 10.0]],
-            {"heading_tolerance": 0.5},
+            [10.0, 10.0],
+            {"heading_tolerance_on": 0.5},
             False,
         ),
         # Agent heading is 90° off → error outside tolerance → guard = True
         (
             np.array([0.0, 0.0, math.pi / 2, 0.0, 0.0]),
-            [[10.0, 0.0]],
-            {"heading_tolerance": 0.1},
+            [10.0, 0.0],
+            {"heading_tolerance_on": 0.1},
             True,
         ),
         # Agent and waypoint at identical position → guard = False (short-circuit)
         (
             np.array([5.0, 5.0, 0.0, 0.0, 0.0]),
-            [[5.0, 5.0]],
-            {"heading_tolerance": 0.1},
+            [5.0, 5.0],
+            {"heading_tolerance_on": 0.1},
             False,
         ),
     ],
@@ -108,22 +108,22 @@ def test_heading_not_within_tolerance_guard(agent_pose, waypoints, configuration
         # Agent heading points directly at waypoint → within tolerance → guard = True
         (
             np.array([0.0, 0.0, math.atan2(10.0, 10.0), 0.0, 0.0]),
-            [[10.0, 10.0]],
-            {"heading_tolerance": 0.5, "waypoints": None},   # waypoints key required by guard
+            [10.0, 10.0],
+            {"heading_tolerance_off": 0.5},
             True,
         ),
         # Agent heading 90° off → outside tolerance → guard = False
         (
             np.array([0.0, 0.0, math.pi / 2, 0.0, 0.0]),
-            [[10.0, 0.0]],
-            {"heading_tolerance": 0.1, "waypoints": None},
+            [10.0, 0.0],
+            {"heading_tolerance_off": 0.1},
             False,
         ),
         # Same position → False (short-circuit, same logic as not_within)
         (
             np.array([5.0, 5.0, 0.0, 0.0, 0.0]),
-            [[5.0, 5.0]],
-            {"heading_tolerance": 0.1, "waypoints": None},
+            [5.0, 5.0],
+            {"heading_tolerance_off": 0.1},
             False,
         ),
     ],
@@ -135,14 +135,6 @@ def test_heading_not_within_tolerance_guard(agent_pose, waypoints, configuration
 )
 def test_heading_within_tolerance_guard(agent_pose, waypoints, configuration, expected_eval):
     ctx = _make_ctx(agent_pose=agent_pose, waypoints=waypoints, configuration=configuration)
-
-    # The guard reads waypoints from ctx.configuration['waypoints'] (note: this is a known
-    # quirk of the current implementation). Wire the aux mock into configuration so the
-    # guard can call .latest() on it.
-    mock_waypoints_aux = MagicMock(spec=_AuxiliaryState)
-    mock_waypoints_aux.latest.return_value = waypoints
-    ctx.configuration["waypoints"] = mock_waypoints_aux
-
     result = heading_within_tolerance_guard(ctx)
     assert result == expected_eval
 
@@ -209,7 +201,7 @@ def test_los_clear_to_waypoint_guard(
 ):
     ctx = _make_ctx(
         agent_pose=agent_pose,
-        waypoints=[waypoint],
+        waypoints=waypoint,
         unsafe_region=unsafe_region_vertices,
         configuration=configuration,
     )
@@ -277,7 +269,7 @@ def test_waypoint_reached_guard(agent_position, waypoint, acceptance_radius, exp
     agent_pose = np.array([agent_position[0], agent_position[1], 0.0, 0.0, 0.0])
     ctx = _make_ctx(
         agent_pose=agent_pose,
-        waypoints=[waypoint],
+        waypoints=waypoint,
         configuration={"acceptance_radius": acceptance_radius},
     )
     result = waypoint_reached_guard(ctx)
@@ -289,8 +281,8 @@ def test_waypoint_reached_guard_uses_default_acceptance_radius():
     agent_pose = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
     ctx = _make_ctx(
         agent_pose=agent_pose,
-        waypoints=[[15.0, 0.0]],   # 15 m away, inside default 20 m radius
-        configuration={},           # no acceptance_radius key
+        waypoints=[15.0, 0.0],   # 15 m away, inside default 20 m radius
+        configuration={},         # no acceptance_radius key
     )
     result = waypoint_reached_guard(ctx)
     assert result is True
@@ -298,9 +290,6 @@ def test_waypoint_reached_guard_uses_default_acceptance_radius():
 
 # ---------------------------------------------------------------------------
 # unsafe_conditions_guard
-# NOTE: The current guard implementation references bare `x` and `cfg` names
-# (not `ctx`), which is a bug in the source.  These tests document the
-# *intended* contract and will pass once the guard is corrected to use ctx.
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
@@ -338,12 +327,62 @@ def test_unsafe_conditions_guard(
     agent_position, unsafe_region_vertices, agent_safety_radius, expected_eval
 ):
     agent_pose = np.array([agent_position[0], agent_position[1], 0.0, 0.0, 0.0])
-    configuration = {
-        "agent_safety_radius": agent_safety_radius,
-        "unsafe_region": unsafe_region_vertices,
-    }
-    ctx = _make_ctx(agent_pose=agent_pose, configuration=configuration)
+    configuration = {"agent_safety_radius": agent_safety_radius}
+    ctx = _make_ctx(
+        agent_pose=agent_pose,
+        unsafe_region=unsafe_region_vertices,
+        configuration=configuration,
+    )
     result = unsafe_conditions_guard(ctx)
+    assert result == expected_eval
+
+
+# ---------------------------------------------------------------------------
+# safe_conditions_guard (inverse of unsafe_conditions_guard)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "agent_position, unsafe_region_vertices, agent_safety_radius, expected_eval",
+    [
+        # Agent circle completely clear of unsafe region → conditions safe → True
+        (
+            [0.0, 0.0],
+            [[100.0, 100.0], [110.0, 100.0], [110.0, 110.0], [100.0, 110.0]],
+            5.0,
+            True,
+        ),
+        # Agent sitting inside the unsafe region → still unsafe → False
+        (
+            [105.0, 105.0],
+            [[100.0, 100.0], [110.0, 100.0], [110.0, 110.0], [100.0, 110.0]],
+            1.0,
+            False,
+        ),
+        # Agent outside but safety radius overlaps the unsafe region → still unsafe → False
+        (
+            [98.0, 105.0],
+            [[100.0, 100.0], [110.0, 100.0], [110.0, 110.0], [100.0, 110.0]],
+            5.0,
+            False,
+        ),
+    ],
+    ids=[
+        "Test 1: Agent clear of unsafe region → True",
+        "Test 2: Agent inside unsafe region → False",
+        "Test 3: Agent safety radius overlaps unsafe region → False",
+    ],
+)
+def test_safe_conditions_guard(
+    agent_position, unsafe_region_vertices, agent_safety_radius, expected_eval
+):
+    agent_pose = np.array([agent_position[0], agent_position[1], 0.0, 0.0, 0.0])
+    configuration = {"agent_safety_radius": agent_safety_radius}
+    ctx = _make_ctx(
+        agent_pose=agent_pose,
+        unsafe_region=unsafe_region_vertices,
+        configuration=configuration,
+    )
+    result = safe_conditions_guard(ctx)
     assert result == expected_eval
 
 

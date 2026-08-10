@@ -1,6 +1,7 @@
 flowchart TD
-    A([Start]) --> B{Input Valid?}
-    B -->|Yes| C[/aux_x.waypoints.length > 1/]
-    B -->|No| D[/Raise ValueError/]
-    D --> E
-    C --> E[/End/]
+    A([Start: virtual_waypoints_guard]) --> B{"ctx.auxiliary_states is None<br/>or 'waypoints' not in it?"}
+    B -->|Yes| Z[/Raise ValueError/]
+    B -->|No| C["depth = len(ctx.auxiliary_states'waypoints'.aux_buffer)"]
+    C --> D{depth > 1?}
+    D -->|Yes| E([Return True - virtual waypoints queued])
+    D -->|No| F([Return False - only the goal waypoint remains])

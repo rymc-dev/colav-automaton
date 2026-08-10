@@ -207,3 +207,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# colav-automaton run artifacts
+colav-automaton-logs/
+*.csv
+
+# Windows/WSL download markers
+*:Zone.Identifier

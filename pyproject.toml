@@ -5,16 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "colav-automaton"
 dynamic = ["version"]
-description = ''
+description = "Maritime collision-avoidance hybrid automaton built on hybrid-automaton, using risk envelopes for waypoint generation."
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
-keywords = []
+keywords = ["colav", "maritime", "autonomy", "robotics", "hybrid-automaton", "waypoint-generation"]
 authors = [
   { name = "Ryan McKee", email = "ryanmckee47@icloud.com" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -25,14 +25,21 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "hybrid-automaton==0.0.6",
-  "shapely", 
+  "hybrid-automaton>=1.0.0",
+  "shapely",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "pytest-asyncio",
+  "pytest-mock",
 ]
 
 [project.urls]
-Documentation = "https://github.com/Ryan McKee/colav-automaton#readme"
-Issues = "https://github.com/Ryan McKee/colav-automaton/issues"
-Source = "https://github.com/Ryan McKee/colav-automaton"
+Documentation = "https://github.com/rymc-dev/colav-automaton#readme"
+Issues = "https://github.com/rymc-dev/colav-automaton/issues"
+Source = "https://github.com/rymc-dev/colav-automaton"
 
 [tool.hatch.version]
 path = "src/colav_automaton/__about__.py"
