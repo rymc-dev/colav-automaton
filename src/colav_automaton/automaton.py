@@ -70,19 +70,20 @@ def ColavAutomaton(
         name="e1",
         to_state=q2,
         guards=[heading_not_within_tolerance_guard],
-        priority=1
+        priority=2
     )
     e2 = Transition(
         name="e2",
         to_state=q2,
         guards=[los_clear_to_waypoint_guard],
         reset=generate_new_virtual_waypoint,
-        priority=0
+        priority=1
     )
     e4 = Transition(
         name="e4",
         to_state=q4,
-        guards=[waypoint_reached_guard]
+        guards=[waypoint_reached_guard],
+        priority=0
     )
     q1.add_transitions([e1, e2, e4])
 
@@ -90,12 +91,14 @@ def ColavAutomaton(
     e5 = Transition(
         name = "e5",
         to_state=q1,
-        guards=[heading_within_tolerance_guard]
+        guards=[heading_within_tolerance_guard],
+        priority=1
     )
     e6 = Transition(
         name="e6",
         to_state=q3,
-        guards=[unsafe_conditions_guard]
+        guards=[unsafe_conditions_guard],
+        priority=0
     )
     q2.add_transitions([e5, e6])
 
@@ -104,7 +107,8 @@ def ColavAutomaton(
     e8 = Transition(
         name="e8",
         to_state=q1,
-        guards=[safe_conditions_guard]
+        guards=[safe_conditions_guard],
+        priority=0
     )
     q3.add_transition(e8)
 
@@ -113,14 +117,15 @@ def ColavAutomaton(
         name="e7",
         to_state=q1,
         guards=[virtual_waypoints_guard],
-        reset=pop_virtual_waypoint
+        reset=pop_virtual_waypoint,
+        priority=0
     )
     q4.add_transition(e7)
 
 
     ha = Automaton(
         name="COLAV Automaton",
-        version="1.0.0",
+        version="1.0.1",
         states=[
             q1,
             q2,
