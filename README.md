@@ -8,7 +8,7 @@
 | Field         | Value        |
 |---------------|--------------|
 | Last Updated  | 2026-08-13   |
-| Version       | 1.0.1        |
+| Version       | 1.0.2        |
 
 ## Overview
 
@@ -16,7 +16,7 @@
 
 This is not a full COLREGs rule-engine (it doesn't encode give-way/stand-on role logic for head-on, crossing, or overtaking encounters) - it's a general risk-envelope-avoidance automaton. Feed it any polygon as an unsafe region (a static hazard, a buffered obstacle, a COLREGs-derived exclusion zone computed upstream, etc.) and it will route around it.
 
-**Framework Status**: v1.0.1 - Stable API, tested against real `hybrid-automaton>=1.0.1`, ready for simulation use and ROS2 integration testing on hardware.
+**Framework Status**: v1.0.2 - Stable API, tested against real `hybrid-automaton>=1.0.1`, ready for simulation use and ROS2 integration testing on hardware.
 
 If you have ideas for improvement or want to contribute, please reach out and become a collaborator!
 
@@ -107,7 +107,7 @@ A runnable version of this (with a few example scenarios) is in [`scripts/run_de
 
 ## Practical Use Cases
 
-**Is this ready for real-world use?** As of v1.0.0 it's ready for simulation and ROS2 integration/hardware-in-the-loop testing - it hasn't yet been validated on a physical vessel.
+**Is this ready for real-world use?** As of v1.0.2 it's ready for simulation and ROS2 integration/hardware-in-the-loop testing - it hasn't yet been validated on a physical vessel.
 
 ### Key Applications
 
@@ -135,7 +135,7 @@ Please cite this package as described below if used in research:
 ```bibtex
 @misc{colav_automaton_2026,
   author       = {Ryan McKee},
-  title        = {colav-automaton v1.0.1},
+  title        = {colav-automaton v1.0.2},
   howpublished = {GitHub repository},
   year         = {2026},
   note         = {Accessed: Aug. 10, 2026},
