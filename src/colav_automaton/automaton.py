@@ -100,7 +100,13 @@ def ColavAutomaton(
         guards=[unsafe_conditions_guard],
         priority=0
     )
-    q2.add_transitions([e5, e6])
+    e7 = Transition(
+        name="e7",
+        to_state=q4,
+        guards=[waypoint_reached_guard],
+        priority=0
+    )
+    q2.add_transitions([e5, e6, e7])
 
     # NOTE: transitions from FALLBACK (q3) - recover to Cruise once the
     # agent's safety radius no longer intersects the unsafe region.
@@ -113,14 +119,14 @@ def ColavAutomaton(
     q3.add_transition(e8)
 
     # NOTE: from goal reached
-    e7 = Transition(
-        name="e7",
+    e9 = Transition(
+        name="e9",
         to_state=q1,
         guards=[virtual_waypoints_guard],
         reset=pop_virtual_waypoint,
         priority=0
     )
-    q4.add_transition(e7)
+    q4.add_transition(e9)
 
 
     ha = Automaton(
