@@ -79,26 +79,26 @@ def ColavAutomaton(
         reset=generate_new_virtual_waypoint,
         priority=1
     )
-    e4 = Transition(
-        name="e4",
+    e3 = Transition(
+        name="e3",
         to_state=q4,
         guards=[waypoint_reached_guard],
         priority=0
     )
-    q1.add_transitions([e1, e2, e4])
+    q1.add_transitions([e1, e2, e3])
 
     # NOTE: transitions from Turn to LOS (q2)
     e5 = Transition(
         name = "e5",
         to_state=q1,
         guards=[heading_within_tolerance_guard],
-        priority=1
+        priority=3
     )
     e6 = Transition(
         name="e6",
         to_state=q3,
         guards=[unsafe_conditions_guard],
-        priority=0
+        priority=1
     )
     e7 = Transition(
         name="e7",
@@ -106,27 +106,34 @@ def ColavAutomaton(
         guards=[waypoint_reached_guard],
         priority=0
     )
-    q2.add_transitions([e5, e6, e7])
+    e8 = Transition(
+        name="e8",
+        to_state=q2,
+        guards=[los_clear_to_waypoint_guard],
+        reset=generate_new_virtual_waypoint,
+        priority=2
+    )
+    q2.add_transitions([e5, e6, e7, e8])
 
     # NOTE: transitions from FALLBACK (q3) - recover to Cruise once the
     # agent's safety radius no longer intersects the unsafe region.
-    e8 = Transition(
-        name="e8",
+    e9 = Transition(
+        name="e9",
         to_state=q1,
         guards=[safe_conditions_guard],
         priority=0
     )
-    q3.add_transition(e8)
+    q3.add_transition(e9)
 
     # NOTE: from goal reached
-    e9 = Transition(
-        name="e9",
+    e10 = Transition(
+        name="e10",
         to_state=q1,
         guards=[virtual_waypoints_guard],
         reset=pop_virtual_waypoint,
         priority=0
     )
-    q4.add_transition(e9)
+    q4.add_transition(e10)
 
 
     ha = Automaton(
