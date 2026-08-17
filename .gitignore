@@ -210,6 +210,7 @@ __marimo__/
 
 # colav-automaton run artifacts
 colav-automaton-logs/
+notebooks/notebook-run-logs/
 *.csv
 
 # Windows/WSL download markers

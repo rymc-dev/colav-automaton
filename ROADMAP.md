@@ -39,14 +39,44 @@ for the same pattern on the framework side.
   Worth a second look once this is running on real hardware - "hold
   course" is a conservative default, not a tuned COLREGs-aware response.
 
-## Deliberately out of scope for v1.0.0
+## Done in v1.0.4
 
-- **Not full COLREGs rule-category compliance.** This automaton avoids a
-  generic unsafe/risk region via waypoint generation - it does not
-  implement COLREGs give-way/stand-on role logic (head-on, crossing,
-  overtaking encounters). The package is named `colav-automaton` rather
-  than `colregs-automaton` specifically because of this; adding real
-  COLREGs rule categorization would be a natural v1.1+ direction.
+- **Cruise/Transition_to_LOS merged into a single `Transit` state.** They
+  existed purely to gate when LOS heading correction was "allowed" to run
+  (via `heading_not_within_tolerance_guard`/`heading_within_tolerance_guard`
+  and their deadband config) - since LOS control (`flow_los_heading`)
+  safely subsumes open-loop heading-hold, the split bought no behavior for
+  two extra guards and transitions. The automaton is now 3 states / 5
+  transitions (`e1`-`e5`), down from 4 states / 10 transitions.
+
+- **COLREGs give-way/stand-on role logic, added.** `colav_automaton.classification`
+  classifies each nearby ship's encounter geometry (Rule 13 overtaking,
+  Rule 14 head-on, Rule 15 crossing give-way/stand-on) and weights it by
+  Rule 18 vessel-type right-of-way (from an AIS-style `tag`: sailing,
+  fishing, tanker, etc.), producing a `Maneuver` (side + urgency). For
+  multiple ships, `classify_unsafe_set_obstacles` re-applies `riskenv`'s
+  own I1/I2/I3 "of interest" filtering before aggregating, so the
+  maneuver_bias stays scoped to the same obstacles the unsafe_region hull
+  was built from - a distant, irrelevant ship can't dominate the decision
+  just because its encounter geometry looks dangerous in isolation.
+  `resets.generate_new_virtual_waypoint` uses the aggregated result
+  (`maneuver_bias`) to override its own geometric "easiest side" default
+  when classification data is available. Not full rule-category coverage -
+  see below for what's still missing.
+
+- **`unsafe_region` risk-envelope generation now uses `riskenv` for real**
+  (a real `pyproject.toml` dependency, not an unfinished stub). See
+  `scripts/generate_unsafe_set.py` for the working ships-in,
+  unsafe-region-and-maneuver-bias-out example.
+
+## Deliberately out of scope for v1.0.4
+
+- **Not a certified COLREGs rule-engine.** `colav_automaton.classification`
+  covers Rules 13/14/15/17/18 geometrically and by vessel type, but not
+  restricted visibility (Rule 19), sound/light signal requirements, or
+  simultaneous multi-vessel priority arbitration beyond
+  `aggregate_maneuvers`'s highest-urgency-wins rule. Worth a second look
+  once this is validated against real multi-vessel traffic.
 
 - **No CI lint job.** `test`/`build`/`publish` run in
   `.github/workflows/workflow.yml`; linting was deliberately left out of

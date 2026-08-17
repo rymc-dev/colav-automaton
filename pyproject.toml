@@ -27,6 +27,7 @@ classifiers = [
 dependencies = [
   "hybrid-automaton>=1.0.0",
   "shapely",
+  "riskenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

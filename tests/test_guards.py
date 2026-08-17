@@ -4,8 +4,6 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from colav_automaton.guards import (
-    heading_not_within_tolerance_guard,
-    heading_within_tolerance_guard,
     los_clear_to_waypoint_guard,
     unsafe_conditions_guard,
     safe_conditions_guard,
@@ -18,7 +16,6 @@ from hybrid_automaton import AuxiliaryState as _AuxiliaryState
 import pytest
 from unittest.mock import MagicMock
 import numpy as np
-import math
 
 
 # ---------------------------------------------------------------------------
@@ -55,88 +52,6 @@ def _make_ctx(
     ctx.configuration = configuration if configuration is not None else {}
 
     return ctx
-
-
-# ---------------------------------------------------------------------------
-# heading_not_within_tolerance_guard
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize(
-    "agent_pose, waypoints, configuration, expected_eval",
-    [
-        # Agent heading already points at waypoint → error within tolerance → guard = False
-        (
-            np.array([0.0, 0.0, math.atan2(10.0, 10.0), 0.0, 0.0]),
-            [10.0, 10.0],
-            {"heading_tolerance_on": 0.5},
-            False,
-        ),
-        # Agent heading is 90° off → error outside tolerance → guard = True
-        (
-            np.array([0.0, 0.0, math.pi / 2, 0.0, 0.0]),
-            [10.0, 0.0],
-            {"heading_tolerance_on": 0.1},
-            True,
-        ),
-        # Agent and waypoint at identical position → guard = False (short-circuit)
-        (
-            np.array([5.0, 5.0, 0.0, 0.0, 0.0]),
-            [5.0, 5.0],
-            {"heading_tolerance_on": 0.1},
-            False,
-        ),
-    ],
-    ids=[
-        "Test 1: Heading within tolerance → guard False",
-        "Test 2: Heading outside tolerance → guard True",
-        "Test 3: Agent and waypoint at same position → guard False",
-    ],
-)
-def test_heading_not_within_tolerance_guard(agent_pose, waypoints, configuration, expected_eval):
-    ctx = _make_ctx(agent_pose=agent_pose, waypoints=waypoints, configuration=configuration)
-    result = heading_not_within_tolerance_guard(ctx)
-    assert result == expected_eval
-
-
-# ---------------------------------------------------------------------------
-# heading_within_tolerance_guard
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize(
-    "agent_pose, waypoints, configuration, expected_eval",
-    [
-        # Agent heading points directly at waypoint → within tolerance → guard = True
-        (
-            np.array([0.0, 0.0, math.atan2(10.0, 10.0), 0.0, 0.0]),
-            [10.0, 10.0],
-            {"heading_tolerance_off": 0.5},
-            True,
-        ),
-        # Agent heading 90° off → outside tolerance → guard = False
-        (
-            np.array([0.0, 0.0, math.pi / 2, 0.0, 0.0]),
-            [10.0, 0.0],
-            {"heading_tolerance_off": 0.1},
-            False,
-        ),
-        # Same position → False (short-circuit, same logic as not_within)
-        (
-            np.array([5.0, 5.0, 0.0, 0.0, 0.0]),
-            [5.0, 5.0],
-            {"heading_tolerance_off": 0.1},
-            False,
-        ),
-    ],
-    ids=[
-        "Test 1: Heading within tolerance → guard True",
-        "Test 2: Heading outside tolerance → guard False",
-        "Test 3: Agent and waypoint at same position → guard False",
-    ],
-)
-def test_heading_within_tolerance_guard(agent_pose, waypoints, configuration, expected_eval):
-    ctx = _make_ctx(agent_pose=agent_pose, waypoints=waypoints, configuration=configuration)
-    result = heading_within_tolerance_guard(ctx)
-    assert result == expected_eval
 
 
 # ---------------------------------------------------------------------------

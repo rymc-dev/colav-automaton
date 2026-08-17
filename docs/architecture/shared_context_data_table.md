@@ -9,8 +9,8 @@ used pre-v1.0.0 - this doc describes the current contract.
 | Field | Type | Description | Example |
 |---|---|---|---|
 | `ctx.continuous_state` | `ContinuousState` | The agent's continuous state, integrated by the automaton's continuous dynamics each step. `.latest()` returns the current state vector. In this package the state is `[x_pos, y_pos, theta, velocity, yaw_rate]` (theta in radians). | `ctx.continuous_state.latest()` → `[10.5, 20.3, 1.5, 2.0, 0.0]` |
-| `ctx.auxiliary_states` | `Dict[str, AuxiliaryState]` | Externally/reset-updated continuous state that isn't integrated by the automaton. Each `AuxiliaryState` has `.latest()` (most recent value) and `.aux_buffer` (a bounded history deque - each `.add()` call pushes to the front, each `.pop()` removes the front). In this package: `'waypoints'` (stack of `[wx, wy]` points, current target is `.latest()`) and `'unsafe_region'` (unsafe polygon vertices). | `ctx.auxiliary_states['waypoints'].latest()` → `[10.0, 20.0]` |
-| `ctx.configuration` | `Dict` | Static per-automaton configuration set at construction time (see `ColavAutomaton()` in `automaton.py`), e.g. tolerances, radii, offset distances. | `ctx.configuration['heading_tolerance_on']` → `0.2` |
+| `ctx.auxiliary_states` | `Dict[str, AuxiliaryState]` | Externally/reset-updated continuous state that isn't integrated by the automaton. Each `AuxiliaryState` has `.latest()` (most recent value) and `.aux_buffer` (a bounded history deque - each `.add()` call pushes to the front, each `.pop()` removes the front). In this package: `'waypoints'` (stack of `[wx, wy]` points, current target is `.latest()`), `'unsafe_region'` (unsafe polygon vertices, typically built upstream by `riskenv.create_unsafe_set`), and the optional `'maneuver_bias'` (`{"side": "port"\|"starboard", "urgency": float}`, the serialized form of a `colav_automaton.classification.Maneuver` - see `resets.generate_new_virtual_waypoint`, which reads it if present to override its geometric side-selection default). | `ctx.auxiliary_states['waypoints'].latest()` → `[10.0, 20.0]` |
+| `ctx.configuration` | `Dict` | Static per-automaton configuration set at construction time (see `ColavAutomaton()` in `automaton.py`), e.g. radii, gains, offset distances. | `ctx.configuration['agent_safety_radius']` → `30.0` |
 | `ctx.control_inputs` | `Dict[str, ControlInput]` | Static/piecewise-static control inputs. Not currently used by any guard/reset/invariant in this package. | - |
 
 ## Guard module contract
@@ -24,8 +24,11 @@ per-guard flowcharts and truth tables.
 An invariant is a function `ctx -> bool`. If it returns `False` while no
 guard on the current state fires, the automaton has no active
 transition and is considered stuck. `failing_invariant` (always `False`) is
-used on `Fallback` and `Waypoint_Reached` specifically to force them to
-always have an active outgoing guard - see `src/colav_automaton/invariants/invariants.py`.
+used on `Waypoint_Reached` to force it to always have an active outgoing
+guard (`e5`) rather than idling in a terminal-looking state. `Fallback`
+deliberately has no invariant - it must be able to idle across multiple
+steps until `safe_conditions_guard` (`e4`) clears it. See
+`src/colav_automaton/invariants/invariants.py`.
 
 ## Reset module contract
 

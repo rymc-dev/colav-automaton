@@ -13,18 +13,32 @@ import numpy.testing as npt
 
 
 @pytest.mark.parametrize(
-    "agent_pos, risk_region_vertices, goal, config, expected_vw_point",
+    "agent_pos, risk_region_vertices, goal, config, maneuver_bias, expected_vw_point",
     [
-        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], [100.0, 0.0], {}, [30.0, 20.0]),
-        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], [100.0, 0.0], {'longitudinal_offset_distance': 5.0, 'lateral_offset_distance': 5.0}, [30.0, 15.0]),
-
+        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], [100.0, 0.0], {}, None, [30.0, 20.0]),
+        ([0.0,0.0, 0.0], [[30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]], [100.0, 0.0], {'longitudinal_offset_distance': 5.0, 'lateral_offset_distance': 5.0}, None, [30.0, 15.0]),
+        # Port-side vertex is the geometrically "easier" one here (much
+        # smaller heading change for a similar distance) - no maneuver_bias,
+        # so the ease-of-navigation heuristic should pick port over the
+        # default starboard tie-break.
+        ([0.0, 0.0, 0.0], [[5.0, -50.0], [50.0, 5.0], [27.0, -20.0]], [100.0, 0.0], {'lateral_offset_distance': 10.0}, None, [50.0, 15.0]),
+        # maneuver_bias forces starboard (the geometrically "harder" side
+        # here) at full urgency - COLREGs compliance overrides the
+        # ease-of-navigation default, and the offset is doubled (1+urgency).
+        ([0.0, 0.0, 0.0], [[5.0, -50.0], [50.0, 5.0], [27.0, -20.0]], [100.0, 0.0], {'lateral_offset_distance': 10.0}, {'side': 'starboard', 'urgency': 1.0}, [5.0, -70.0]),
+        # maneuver_bias confirms port (agreeing with the geometric default
+        # here) at partial urgency - offset scaled by (1+urgency).
+        ([0.0, 0.0, 0.0], [[5.0, -50.0], [50.0, 5.0], [27.0, -20.0]], [100.0, 0.0], {'lateral_offset_distance': 10.0}, {'side': 'port', 'urgency': 0.5}, [50.0, 20.0]),
     ],
     ids=[
          "Test Case 1: Agent at origin, risk region vertices form a polygon, expected virtual waypoint is the rightmost visible vertex, no config.",
-         "Test Case 2: Agent at origin, risk region vertices form a polygon, expected virtual waypoint is the rightmost visible vertex, with config offsets."
+         "Test Case 2: Agent at origin, risk region vertices form a polygon, expected virtual waypoint is the rightmost visible vertex, with config offsets.",
+         "Test Case 3: No maneuver_bias - port side chosen because it's geometrically easier to navigate to.",
+         "Test Case 4: maneuver_bias overrides the geometric default to starboard and scales the offset by urgency.",
+         "Test Case 5: maneuver_bias agrees with the geometric default (port) and scales the offset by urgency.",
     ]
 )
-def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, config, expected_vw_point):
+def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, config, maneuver_bias, expected_vw_point):
     """
     :param agent_pos: agent's [x, y, heading]
     :type agent_pos: list[float]
@@ -35,6 +49,10 @@ def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, co
     :type goal: list[float]
     :param config: automaton configuration (offset distances)
     :type config: dict[str, float]
+    :param maneuver_bias: optional COLREGs maneuver bias
+        ({"side": "port"|"starboard", "urgency": float}) as would be
+        produced by classification.Maneuver.as_bias()
+    :type maneuver_bias: dict | None
     :param expected_vw_point: expected virtual waypoint pushed via .add()
     :type expected_vw_point: list[float]
     """
@@ -53,6 +71,10 @@ def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, co
         'unsafe_region': risk_region_vertices_aux_state,
         'waypoints': waypoints_aux_state
     }
+    if maneuver_bias is not None:
+        maneuver_bias_aux_state = MagicMock(spec=AuxiliaryState)
+        maneuver_bias_aux_state.latest.return_value = maneuver_bias
+        ctx.auxiliary_states['maneuver_bias'] = maneuver_bias_aux_state
     ctx.configuration = config
 
     updated_ctx: RuntimeContext = generate_new_virtual_waypoint(ctx)
