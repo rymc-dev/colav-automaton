@@ -10,7 +10,7 @@ from .classification import (
 )
 
 __author__ = "Ryan McKee <ryanmckee47@icloud.com>"
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 __description__ = "COLREGs-informed encounter classification and maneuver selection for colav-automaton"
 
 __all__ = [

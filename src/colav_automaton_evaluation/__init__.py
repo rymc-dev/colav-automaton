@@ -5,7 +5,7 @@
 from .figure_generator import plot_xy_position_over_time
 
 __author__ = "Ryan McKee <ryanmckee47@icloud.com>"
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 __description__ = "evaluation/visualization utilities for colav-automaton run results"
 
 __all__ = [

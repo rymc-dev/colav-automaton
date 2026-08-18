@@ -133,7 +133,7 @@ def ColavAutomaton(
 
     ha = Automaton(
         name="COLAV Automaton",
-        version="1.0.5",
+        version="1.0.6",
         states=[
             q1,
             q2,

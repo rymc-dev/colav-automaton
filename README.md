@@ -7,8 +7,8 @@
 
 | Field         | Value        |
 |---------------|--------------|
-| Last Updated  | 2026-08-17   |
-| Version       | 1.0.4        |
+| Last Updated  | 2026-08-18   |
+| Version       | 1.0.6        |
 
 ## Overview
 
@@ -16,7 +16,7 @@
 
 As of v1.0.4, waypoint generation is COLREGs-informed: the `colav_automaton.classification` module classifies each nearby ship's encounter geometry (Rule 13 overtaking, Rule 14 head-on, Rule 15 crossing) and weights it by Rule 18 vessel-type right-of-way (from AIS-style type data - sailing, fishing, tanker, etc.), producing a `maneuver_bias` (which side to route around, and how urgently) that overrides the automaton's default geometric "easiest side" heuristic. With multiple ships around, `classify_unsafe_set_obstacles` re-applies the same I1/I2/I3 "of interest" filtering `riskenv` used to build `unsafe_region` before aggregating - a distant ship riskenv itself would ignore can't out-vote a closer, genuine threat - then combines what's left by highest urgency (starboard breaking ties). It still isn't a certified rule-engine - restricted visibility (Rule 19), sound/light signals, and simultaneous multi-vessel priority beyond that highest-urgency-wins rule are out of scope - but it's no longer purely a generic risk-region router either. See [`ROADMAP.md`](./ROADMAP.md) for the full picture.
 
-**Framework Status**: v1.0.4 - Stable API, tested against real `hybrid-automaton>=1.0.0` and `riskenv>=1.0.0`, ready for simulation use and ROS2 integration testing on hardware.
+**Framework Status**: v1.0.6 - Stable API, tested against real `hybrid-automaton>=1.0.0` and `riskenv>=1.0.0`, ready for simulation use and ROS2 integration testing on hardware.
 
 If you have ideas for improvement or want to contribute, please reach out and become a collaborator!
 
@@ -47,7 +47,7 @@ stateDiagram-v2
     Waypoint_Reached --> Transit: e5 pop virtual waypoint
 ```
 
-- **Transit** - the only "under way" state; always actively steers using line-of-sight (LOS) guidance toward the current waypoint. (Earlier versions split this into separate `Cruise`/`Transition_to_LOS` states purely to gate when LOS correction was "allowed" to run - since LOS control safely subsumes open-loop heading-hold, that split bought nothing and was removed in v1.0.4.) When `los_clear_to_waypoint_guard` finds the direct path to the waypoint blocked by the unsafe region, a **virtual waypoint** is generated and pushed onto the waypoint stack ahead of the real goal - see [`generate_new_virtual_waypoint`](./src/colav_automaton/resets/resets.py) below.
+- **Transit** - the only "under way" state; always actively steers using line-of-sight (LOS) guidance toward the current waypoint. (Earlier versions split this into separate `Cruise`/`Transition_to_LOS` states purely to gate when LOS correction was "allowed" to run - since LOS control safely subsumes open-loop heading-hold, that split bought nothing and was removed in v1.0.4.) When `los_clear_to_waypoint_guard` finds the direct path to the waypoint blocked by the unsafe region, a **virtual waypoint** is generated ahead of the real goal - if one is already queued from an earlier reroute, it's replaced rather than stacked, so the agent never has to unwind a pile of detours leg by leg - see [`generate_new_virtual_waypoint`](./src/colav_automaton/resets/resets.py) below.
 - **Fallback** - entered if the agent's safety-radius circle starts intersecting the unsafe region while turning. Holds current heading/velocity (no active re-planning while too close to danger) until the safety circle clears, then returns to Transit.
 - **Waypoint_Reached** - a terminal-ish state hit whenever any waypoint (virtual or goal) is reached within an acceptance radius. If virtual waypoints remain queued, the most recent one is popped and the agent resumes toward the next; otherwise the run ends.
 
@@ -111,7 +111,7 @@ A runnable version of this (with a few example scenarios) is in [`scripts/run_de
 
 ## Practical Use Cases
 
-**Is this ready for real-world use?** As of v1.0.4 it's ready for simulation and ROS2 integration/hardware-in-the-loop testing - it hasn't yet been validated on a physical vessel.
+**Is this ready for real-world use?** As of v1.0.6 it's ready for simulation and ROS2 integration/hardware-in-the-loop testing - it hasn't yet been validated on a physical vessel.
 
 ### Key Applications
 
@@ -140,7 +140,7 @@ Please cite this package as described below if used in research:
 ```bibtex
 @misc{colav_automaton_2026,
   author       = {Ryan McKee},
-  title        = {colav-automaton v1.0.4},
+  title        = {colav-automaton v1.0.6},
   howpublished = {GitHub repository},
   year         = {2026},
   note         = {Accessed: Aug. 10, 2026},

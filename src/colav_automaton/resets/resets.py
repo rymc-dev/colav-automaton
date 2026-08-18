@@ -65,8 +65,15 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
     """
     Utilizes the unsafe set vertices to generate a new virtual waypoint that
     is an offset from a visible vertex of the unsafe set, chosen from the
-    agent's current position and heading. The new waypoint is pushed onto
-    the front of the waypoints list in the auxiliary context state.
+    agent's current position and heading. The new waypoint replaces any
+    virtual waypoint already queued ahead of the goal - the waypoints
+    buffer holds at most one virtual waypoint in front of the original goal
+    at a time, rather than stacking a new one on top of it. Repeated reroute
+    calls (e3 self-loops on Transit each time los_clear_to_waypoint_guard
+    fires) would otherwise pile up a deeper and deeper detour that
+    pop_virtual_waypoint then has to unwind one leg at a time, which reads
+    as the agent doubling back on itself instead of continuing toward the
+    goal.
 
     Side selection:
         - By default, picks whichever visible vertex (rightmost/starboard
@@ -118,7 +125,8 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
 
     chosen_x, chosen_y, _ = right if chosen_side == "starboard" else left
 
-    goal = np.array(ctx.auxiliary_states['waypoints'].latest())
+    waypoints_aux = ctx.auxiliary_states['waypoints']
+    goal = np.array(waypoints_aux.latest())
     if goal.size == 0:
         raise ValueError(
             "no current waypoint set; cannot determine which side to offset the virtual waypoint toward")
@@ -136,7 +144,12 @@ def generate_new_virtual_waypoint(ctx: RuntimeContext) -> RuntimeContext:
 
     adjusted_x = float(chosen_x + perp[0] * lateral_offset)
     adjusted_y = float(chosen_y + perp[1] * lateral_offset)
-    ctx.auxiliary_states['waypoints'].add([adjusted_x, adjusted_y])
+
+    # A virtual waypoint is already queued ahead of the goal - replace it
+    # in place instead of stacking another one on top.
+    if len(waypoints_aux.aux_buffer) > 1:
+        waypoints_aux.pop()
+    waypoints_aux.add([adjusted_x, adjusted_y])
     return ctx
 
 @reset

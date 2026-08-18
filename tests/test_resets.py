@@ -66,6 +66,9 @@ def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, co
     risk_region_vertices_aux_state.latest.return_value = risk_region_vertices
     waypoints_aux_state = MagicMock(spec=AuxiliaryState)
     waypoints_aux_state.latest.return_value = goal
+    # Only the goal on the buffer (no virtual waypoint queued yet) - the
+    # reset should add without popping first.
+    waypoints_aux_state.aux_buffer = [goal]
 
     ctx.auxiliary_states = {
         'unsafe_region': risk_region_vertices_aux_state,
@@ -81,7 +84,48 @@ def test_generate_new_virtual_waypoint(agent_pos, risk_region_vertices, goal, co
 
     called_arg = waypoints_aux_state.add.call_args[0][0]
     npt.assert_allclose(called_arg, np.array(expected_vw_point), atol=1e-6)
+    waypoints_aux_state.pop.assert_not_called()
     assert updated_ctx is ctx, "Expected the same context object to be returned after reset execution."
+
+
+def test_generate_new_virtual_waypoint_replaces_existing_virtual_waypoint():
+    """If a virtual waypoint is already queued ahead of the goal, a new
+    reroute should replace it (pop then add) rather than stacking another
+    one on top - otherwise repeated reroutes pile up a detour that has to
+    be unwound leg by leg, doubling back on itself."""
+    ctx = MagicMock(spec=RuntimeContext)
+
+    continuous_state = MagicMock(spec=ContinuousState)
+    continuous_state.latest.return_value = [0.0, 0.0, 0.0]
+    ctx.continuous_state = continuous_state
+
+    risk_region_vertices_aux_state = MagicMock(spec=AuxiliaryState)
+    risk_region_vertices_aux_state.latest.return_value = [
+        [30.0, 20.0], [25.0, 30.0], [27.0, 40.0], [32.0, 25.0], [30.0, 20.0]
+    ]
+    waypoints_aux_state = MagicMock(spec=AuxiliaryState)
+    current_virtual_waypoint = [10.0, 5.0]
+    waypoints_aux_state.latest.return_value = current_virtual_waypoint
+    # A virtual waypoint is already queued in front of the goal.
+    waypoints_aux_state.aux_buffer = [current_virtual_waypoint, [100.0, 0.0]]
+
+    manager = MagicMock()
+    manager.attach_mock(waypoints_aux_state.pop, 'pop')
+    manager.attach_mock(waypoints_aux_state.add, 'add')
+
+    ctx.auxiliary_states = {
+        'unsafe_region': risk_region_vertices_aux_state,
+        'waypoints': waypoints_aux_state
+    }
+    ctx.configuration = {}
+
+    generate_new_virtual_waypoint(ctx)
+
+    waypoints_aux_state.pop.assert_called_once()
+    waypoints_aux_state.add.assert_called_once()
+    assert [c[0] for c in manager.mock_calls] == ['pop', 'add'], (
+        "Expected the stale virtual waypoint to be popped before the new one is added."
+    )
 
 
 def test_generate_new_virtual_waypoint_raises_with_no_current_waypoint():

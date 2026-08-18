@@ -136,9 +136,11 @@ def virtual_waypoints_guard(ctx: RuntimeContext) -> bool:
 
     Args:
         ctx: RuntimeContext
-            uses ctx.auxiliary_states['waypoints'].aux_buffer (the full
-            waypoint stack - each generate_new_virtual_waypoint() call
-            pushes one entry, each pop_virtual_waypoint() call removes one)
+            uses ctx.auxiliary_states['waypoints'].aux_buffer (holds at
+            most one virtual waypoint ahead of the goal -
+            generate_new_virtual_waypoint() replaces it in place rather
+            than stacking a new one, each pop_virtual_waypoint() call
+            removes it)
 
     Raises:
         ValueError
