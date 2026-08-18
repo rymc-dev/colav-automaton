@@ -9,6 +9,7 @@ from hybrid_automaton import RuntimeContext, ContinuousState, AuxiliaryState
 
 from colav_automaton.dynamics import flow_los_heading
 from colav_automaton.dynamics import constant_heading_dynamics
+from colav_automaton.dynamics import hold_position_dynamics
 
 import numpy as np
 
@@ -73,6 +74,58 @@ def test_constant_heading_dynamics(agent_state, config, expected):
     ctx.configuration = config
     
     result = constant_heading_dynamics(ctx)
+
+    np.testing.assert_allclose(result, expected, atol=1e-6)
+
+@pytest.mark.parametrize(
+    "agent_state, config, expected",
+    [
+        # Test 1: Already stopped -> stays stopped, no motion
+        (
+            np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+            {},
+            np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
+        ),
+
+        # Test 2: Moving forward -> still integrates position from current
+        # v (deceleration, not a teleport), but v_dot brakes toward 0, not
+        # toward constant_velocity like constant_heading_dynamics would
+        (
+            np.array([0.0, 0.0, 0.0, 3.0, 0.0]),
+            {"constant_velocity": 5.0, "k_v": 1.0},
+            np.array([3.0, 0.0, 0.0, -3.0, 0.0]),  # v_dot = 1*(0-3) = -3
+        ),
+
+        # Test 3: k_v scales the braking rate
+        (
+            np.array([0.0, 0.0, 0.0, 4.0, 0.0]),
+            {"k_v": 2.0},
+            np.array([4.0, 0.0, 0.0, -8.0, 0.0]),  # v_dot = 2*(0-4) = -8
+        ),
+
+        # Test 4: Heading = pi/2 -> braking motion purely in +y while it
+        # decelerates
+        (
+            np.array([0.0, 0.0, math.pi / 2, 2.0, 0.0]),
+            {"k_v": 1.0},
+            np.array([0.0, 2.0, 0.0, -2.0, 0.0]),
+        ),
+    ],
+    ids=[
+        "Already stopped stays stopped",
+        "Moving forward brakes toward zero, not constant_velocity",
+        "k_v scales braking rate",
+        "Heading 90deg brakes with pure y motion",
+    ],
+)
+def test_hold_position_dynamics(agent_state, config, expected):
+    ctx = MagicMock(spec=_Runtime_Context)
+    mock_continuous_state = MagicMock(spec=_ContinuousState)
+    mock_continuous_state.latest.return_value = agent_state
+    ctx.continuous_state = mock_continuous_state
+    ctx.configuration = config
+
+    result = hold_position_dynamics(ctx)
 
     np.testing.assert_allclose(result, expected, atol=1e-6)
 

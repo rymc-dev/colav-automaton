@@ -1,9 +1,10 @@
-from .invariants import failing_invariant
+from .invariants import failing_invariant, fallback_recoverable_invariant
 
 __author__ = "Ryan McKee <ryanmckee47@icloud.com>"
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 __description__ = "hybrid-automaton framework invariants for colav-automaton"
 
 __all__ = [
-    "failing_invariant"
+    "failing_invariant",
+    "fallback_recoverable_invariant"
 ]

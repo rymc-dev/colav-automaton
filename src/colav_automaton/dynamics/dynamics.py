@@ -67,4 +67,34 @@ def flow_los_heading(
 
     return np.array([px_dot, py_dot, theta_dot, v_dot, yaw_rate_dot], dtype=float)
 
+@continuous_dynamics
+def hold_position_dynamics(
+    ctx: RuntimeContext
+) -> np.ndarray:
+    """
+    Brakes to a stop and holds position/heading - used by Fallback so a
+    degraded-safety state doesn't keep advancing on whatever heading it
+    happened to have when it was entered. Unlike constant_heading_dynamics
+    (drives v toward constant_velocity, i.e. keeps cruising), this drives
+    v toward 0 with the same k_v gain, so the agent decelerates rather than
+    continuing to close on - or drive through - whatever unsafe region
+    triggered unsafe_conditions_guard in the first place.
+    State x: [px, py, theta, v, yaw_rate]
+    """
+
+    px, py, theta, v, yaw_rate = ctx.continuous_state.latest()
+    k_v = ctx.configuration.get("k_v", 1.0)  # velocity gain
+
+    # kinematics - still integrates from current v so this is a
+    # deceleration, not a teleport to a dead stop
+    px_dot = v * math.cos(theta)
+    py_dot = v * math.sin(theta)
+    theta_dot = 0.0
+
+    # drive v -> 0 (brake), not v -> constant_velocity
+    v_dot = k_v * (0.0 - v)
+
+    yaw_rate_dot = 0.0
+
+    return np.array([px_dot, py_dot, theta_dot, v_dot, yaw_rate_dot], dtype=float)
 

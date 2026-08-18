@@ -12,8 +12,8 @@ from .guards import (
     waypoint_reached_guard,
 )
 from .resets import generate_new_virtual_waypoint, pop_virtual_waypoint
-from .invariants import failing_invariant
-from .dynamics import constant_heading_dynamics, flow_los_heading
+from .invariants import failing_invariant, fallback_recoverable_invariant
+from .dynamics import constant_heading_dynamics, flow_los_heading, hold_position_dynamics
 
 _logger = logging.getLogger(__name__)
 
@@ -26,7 +26,8 @@ def ColavAutomaton(
     acceptance_radius: float = 5,
     los_distance_threshold: float = 60.0,
     longitudinal_offset_distance: float = 50.0,
-    lateral_offset_distance: float = 50.0
+    lateral_offset_distance: float = 50.0,
+    fallback_timeout: float = 30.0
 ) -> Automaton:
     """state definitions
 
@@ -40,6 +41,14 @@ def ColavAutomaton(
     behavior at the cost of two extra guards/transitions
     (heading_not_within_tolerance_guard / heading_within_tolerance_guard)
     purely to gate when LOS correction was "allowed" to run.
+
+    e3 (reroute, generate_new_virtual_waypoint) outranks e2 (Fallback) out
+    of Transit - see the priority note on e2/e3 below. This matters because
+    los_distance_threshold (where a reroute becomes available) is normally
+    farther out than safety_radius (where Fallback triggers), but the two
+    can still go true in the same evaluation step at speed/coarse dt - the
+    reroute must win that race, not lose it, or the agent ends up braced in
+    Fallback for an obstacle it never actually tried to route around.
     """
 
     q1 = State(
@@ -50,13 +59,17 @@ def ColavAutomaton(
     )
     q2 = State(
         name="Fallback",
-        # Hold current heading/velocity (no active re-planning) while too
-        # close to the unsafe region - see e2/e4 below. No invariant: unlike
-        # Waypoint_Reached, Fallback must be able to idle across multiple
-        # steps until safe_conditions_guard (e4) clears - it can't
-        # realistically clear on the very next step after entry, and
-        # failing_invariant would force an INVARIANT_VIOLATION immediately.
-        flow=constant_heading_dynamics,
+        # Brake to a stop and hold position (no active re-planning) while
+        # too close to the unsafe region - see e2/e4 below.
+        # fallback_recoverable_invariant (not failing_invariant - that
+        # would force an INVARIANT_VIOLATION on the very next step, and
+        # Fallback needs to be able to idle across multiple steps while it
+        # waits for safe_conditions_guard/e4 to clear) lets it idle up to
+        # fallback_timeout seconds before giving up and failing the leg,
+        # rather than idling here indefinitely if the unsafe region never
+        # clears.
+        flow=hold_position_dynamics,
+        invariants=[fallback_recoverable_invariant],
         on_enter=lambda: _logger.debug("entered Fallback"),
     )
     q3 = State(
@@ -80,14 +93,21 @@ def ColavAutomaton(
         name="e2",
         to_state=q2,
         guards=[unsafe_conditions_guard],
-        priority=1
+        # Lower precedence than e3 (priority is min-wins - see
+        # _Runtime._evaluation_step) - if both guards are true in the same
+        # step (plausible at speed/coarse dt, since los_distance_threshold
+        # is normally a larger radius than safety_radius), the reroute
+        # must get first refusal. Fallback should only ever be reached once
+        # a reroute genuinely isn't available, not race it and win by
+        # default.
+        priority=2
     )
     e3 = Transition(
         name="e3",
         to_state=q1,
         guards=[los_clear_to_waypoint_guard],
         reset=generate_new_virtual_waypoint,
-        priority=2
+        priority=1
     )
     q1.add_transitions([e1, e2, e3])
 
@@ -113,7 +133,7 @@ def ColavAutomaton(
 
     ha = Automaton(
         name="COLAV Automaton",
-        version="1.0.4",
+        version="1.0.5",
         states=[
             q1,
             q2,
@@ -127,7 +147,8 @@ def ColavAutomaton(
             'acceptance_radius': acceptance_radius,
             'los_distance_threshold': los_distance_threshold,
             'longitudinal_offset_distance': longitudinal_offset_distance,
-            'lateral_offset_distance': lateral_offset_distance
+            'lateral_offset_distance': lateral_offset_distance,
+            'fallback_timeout': fallback_timeout
         }
     )
 
